@@ -257,29 +257,29 @@ func (bbs *BBSG2Pub) SignWithKeyFr(messagesFr []*SignatureMessage, messagesCount
 // construction of blind signing protocols, where `b` is constructed
 // jointly by requester and signer.
 func (bbs *BBSG2Pub) SignWithKeyB(b *ml.G1, messagesCount int, privKey *PrivateKey) ([]byte, error) {
-	var err error
+	// var err error
 
-	pubKey := privKey.PublicKey()
+	// ASK ALE: no longer needed since B is already computed when it is passed in, using the generators?
+	// pubKey := privKey.PublicKey()
+	// pubKeyWithGenerators, err := pubKey.ToPublicKeyWithGenerators(messagesCount)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("build generators from public key: %w", err)
+	// }
 
-	pubKeyWithGenerators, err := pubKey.ToPublicKeyWithGenerators(messagesCount)
-	if err != nil {
-		return nil, fmt.Errorf("build generators from public key: %w", err)
-	}
-
-	e, s := bbs.lib.createRandSignatureFr(), bbs.lib.createRandSignatureFr()
+	e, _ := bbs.lib.createRandSignatureFr(), bbs.lib.createRandSignatureFr()
 	exp := privKey.FR.Copy()
 	exp = exp.Plus(e)
 	exp.InvModP(bbs.curve.GroupOrder)
 
 	b = b.Copy()
-	b.Add(pubKeyWithGenerators.H0.Mul(s))
+	// b.Add(pubKeyWithGenerators.H0.Mul(s))
 
 	sig := b.Mul(FrToRepr(exp))
 
 	signature := &Signature{
-		A:     sig,
-		E:     e,
-		S:     s,
+		A: sig,
+		E: e,
+		// S:     s,
 		curve: bbs.curve,
 	}
 
@@ -287,7 +287,7 @@ func (bbs *BBSG2Pub) SignWithKeyB(b *ml.G1, messagesCount int, privKey *PrivateK
 }
 
 func ComputeB(
-	s *ml.Zr,
+	// s *ml.Zr, // remove use of S
 	messages []*SignatureMessage,
 	key *PublicKeyWithGenerators,
 	curve *ml.Curve,
@@ -297,7 +297,7 @@ func ComputeB(
 	cb := NewCommitmentBuilder(len(messages) + basesOffset)
 
 	cb.Add(curve.GenG1, curve.NewZrFromInt(1))
-	cb.Add(key.H0, s)
+	// cb.Add(key.H0, s) // remove use of S
 
 	for i := 0; i < len(messages); i++ {
 		cb.Add(key.H[messages[i].Idx], messages[i].FR)

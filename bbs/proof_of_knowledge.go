@@ -18,11 +18,8 @@ type PoKOfSignature struct {
 	aBar   *ml.G1
 	d      *ml.G1
 
-	pokVC1   *ProverCommittedG1
-	secrets1 []*ml.Zr
-
-	PokVC2   *ProverCommittedG1
-	secrets2 []*ml.Zr
+	pokVC   *ProverCommittedG1
+	secrets []*ml.Zr
 
 	revealedMessages map[int]*SignatureMessage
 
@@ -34,9 +31,9 @@ func (bl *BBSLib) NewPoKOfSignature(signature *Signature, messages []*SignatureM
 	pubKey *PublicKeyWithGenerators) (*PoKOfSignature, error) {
 
 	p := &PoKOfSignatureProvider{
-		VC2SignatureProvider: &defaultVC2SignatureProvider{
-			bl: bl,
-		},
+		// VC2SignatureProvider: &defaultVC2SignatureProvider{
+		// 	bl: bl,
+		// },
 		VerifySig: true,
 		Curve:     bl.curve,
 		Bl:        bl,
@@ -50,7 +47,7 @@ type VC2SignatureProvider interface {
 }
 
 type PoKOfSignatureProvider struct {
-	VC2SignatureProvider
+	// VC2SignatureProvider
 
 	VerifySig bool
 
@@ -60,7 +57,7 @@ type PoKOfSignatureProvider struct {
 
 func (p *PoKOfSignatureProvider) PoKOfSignature(signature *Signature, messages []*SignatureMessage, revealedIndexes []int,
 	pubKey *PublicKeyWithGenerators) (*PoKOfSignature, error) {
-	b := ComputeB(signature.S, messages, pubKey, p.Bl.curve)
+	b := ComputeB(messages, pubKey, p.Bl.curve)
 
 	return p.PoKOfSignatureB(signature, messages, revealedIndexes, pubKey, b)
 }
@@ -75,31 +72,38 @@ func (p *PoKOfSignatureProvider) PoKOfSignatureB(signature *Signature, messages 
 		}
 	}
 
-	r1, r2 := p.Bl.createRandSignatureFr(), p.Bl.createRandSignatureFr()
-	aPrime := signature.A.Mul(FrToRepr(r1))
+	r := p.Bl.createRandSignatureFr()
+	aPrime := signature.A.Mul(FrToRepr(r))
 
 	aBarDenom := aPrime.Mul(FrToRepr(signature.E))
 
-	aBar := b.Mul(FrToRepr(r1))
+	aBar := b.Mul(FrToRepr(r))
 	aBar.Sub(aBarDenom)
 
-	r2D := r2.Copy()
-	r2D.Neg()
+	const basesOffset = 2
+	cb := NewCommitmentBuilder(len(revealedIndexes) + basesOffset)
+	cb.Add(signature.curve.GenG1, signature.curve.NewZrFromInt(1))
 
-	commitmentBasesCount := 2
-	cb := NewCommitmentBuilder(commitmentBasesCount)
-	cb.Add(b, r1)
-	cb.Add(pubKey.H0, r2D)
+	// loop to add the base and exp for each revealed attribute
+	for _, idx := range revealedIndexes {
+		cb.Add(pubKey.H[messages[idx].Idx], messages[idx].FR)
+	}
 
 	d := cb.Build()
-	r3 := r1.Copy()
-	r3.InvModP(p.Bl.curve.GroupOrder)
 
-	sPrime := r2.Mul(r3)
-	sPrime.Neg()
-	sPrime = sPrime.Plus(signature.S)
+	committing := p.Bl.NewProverCommittingG1()
+	secrets := make([]*ml.Zr, 2)
 
-	pokVC1, secrets1 := p.Bl.newVC1Signature(aPrime, pubKey.H0, signature.E, r2)
+	rInv := r.Copy()
+	rInv.InvModP(p.Bl.curve.GroupOrder)
+
+	committing.Commit(aPrime)
+	eCopy := signature.E.Copy()
+	eCopy.Mul(rInv)
+	secrets[0] = eCopy
+
+	committing.Commit(aBar)
+	secrets[1] = rInv
 
 	revealedMessages := make(map[int]*SignatureMessage, len(revealedIndexes))
 
@@ -112,85 +116,99 @@ func (p *PoKOfSignatureProvider) PoKOfSignatureB(signature *Signature, messages 
 		revealedMessages[messages[ind].Idx] = messages[ind]
 	}
 
-	pokVC2, secrets2 := p.VC2SignatureProvider.New(d, r3, pubKey, sPrime, messages, revealedMessages)
+	// TODO loop to add the bases for every hidden attribute
+	for _, msg := range messages {
+
+		// skip every revealed message
+		if _, ok := revealedMessages[msg.Idx]; ok {
+			continue
+		}
+
+		committing.Commit(pubKey.H[msg.Idx])
+
+		sourceFR := msg.FR
+		hiddenFRCopy := sourceFR.Copy()
+		hiddenFRCopy.Neg()
+
+		secrets = append(secrets, hiddenFRCopy)
+	}
+
+	pokVC := committing.Finish()
 
 	return &PoKOfSignature{
 		aPrime:           aPrime,
 		aBar:             aBar,
 		d:                d,
-		pokVC1:           pokVC1,
-		secrets1:         secrets1,
-		PokVC2:           pokVC2,
-		secrets2:         secrets2,
+		pokVC:            pokVC,
+		secrets:          secrets,
 		revealedMessages: revealedMessages,
 		curve:            p.Curve,
 	}, nil
 }
 
-func (b *BBSLib) newVC1Signature(aPrime *ml.G1, h0 *ml.G1,
-	e, r2 *ml.Zr) (*ProverCommittedG1, []*ml.Zr) {
-	committing1 := b.NewProverCommittingG1()
-	secrets1 := make([]*ml.Zr, 2)
+// func (b *BBSLib) newVC1Signature(aPrime *ml.G1, h0 *ml.G1,
+// 	e, r2 *ml.Zr) (*ProverCommittedG1, []*ml.Zr) {
+// 	committing1 := b.NewProverCommittingG1()
+// 	secrets1 := make([]*ml.Zr, 2)
 
-	committing1.Commit(aPrime)
+// 	committing1.Commit(aPrime)
 
-	sigE := e.Copy()
-	sigE.Neg()
-	secrets1[0] = sigE
+// 	sigE := e.Copy()
+// 	sigE.Neg()
+// 	secrets1[0] = sigE
 
-	committing1.Commit(h0)
+// 	committing1.Commit(h0)
 
-	secrets1[1] = r2
-	pokVC1 := committing1.Finish()
+// 	secrets1[1] = r2
+// 	pokVC1 := committing1.Finish()
 
-	return pokVC1, secrets1
-}
+// 	return pokVC1, secrets1
+// }
 
-type defaultVC2SignatureProvider struct {
-	bl *BBSLib
-}
+// type defaultVC2SignatureProvider struct {
+// 	bl *BBSLib
+// }
 
-func (p *defaultVC2SignatureProvider) New(d *ml.G1, r3 *ml.Zr, pubKey *PublicKeyWithGenerators, sPrime *ml.Zr,
-	messages []*SignatureMessage, revealedMessages map[int]*SignatureMessage) (*ProverCommittedG1, []*ml.Zr) {
-	messagesCount := len(messages)
-	committing2 := p.bl.NewProverCommittingG1()
-	baseSecretsCount := 2
-	secrets2 := make([]*ml.Zr, 0, baseSecretsCount+messagesCount)
+// func (p *defaultVC2SignatureProvider) New(d *ml.G1, r3 *ml.Zr, pubKey *PublicKeyWithGenerators, sPrime *ml.Zr,
+// 	messages []*SignatureMessage, revealedMessages map[int]*SignatureMessage) (*ProverCommittedG1, []*ml.Zr) {
+// 	messagesCount := len(messages)
+// 	committing2 := p.bl.NewProverCommittingG1()
+// 	baseSecretsCount := 2
+// 	secrets2 := make([]*ml.Zr, 0, baseSecretsCount+messagesCount)
 
-	committing2.Commit(d)
+// 	committing2.Commit(d)
 
-	r3D := r3.Copy()
-	r3D.Neg()
+// 	r3D := r3.Copy()
+// 	r3D.Neg()
 
-	secrets2 = append(secrets2, r3D)
+// 	secrets2 = append(secrets2, r3D)
 
-	committing2.Commit(pubKey.H0)
+// 	committing2.Commit(pubKey.H0)
 
-	secrets2 = append(secrets2, sPrime)
+// 	secrets2 = append(secrets2, sPrime)
 
-	for _, msg := range messages {
-		if _, ok := revealedMessages[msg.Idx]; ok {
-			continue
-		}
+// 	for _, msg := range messages {
+// 		if _, ok := revealedMessages[msg.Idx]; ok {
+// 			continue
+// 		}
 
-		committing2.Commit(pubKey.H[msg.Idx])
+// 		committing2.Commit(pubKey.H[msg.Idx])
 
-		sourceFR := msg.FR
-		hiddenFRCopy := sourceFR.Copy()
+// 		sourceFR := msg.FR
+// 		hiddenFRCopy := sourceFR.Copy()
 
-		secrets2 = append(secrets2, hiddenFRCopy)
-	}
+// 		secrets2 = append(secrets2, hiddenFRCopy)
+// 	}
 
-	pokVC2 := committing2.Finish()
+// 	pokVC2 := committing2.Finish()
 
-	return pokVC2, secrets2
-}
+// 	return pokVC2, secrets2
+// }
 
 // ToBytes converts PoKOfSignature to bytes.
 func (pos *PoKOfSignature) ToBytes() []byte {
 	challengeBytes := pos.aBar.Bytes()
-	challengeBytes = append(challengeBytes, pos.pokVC1.ToBytes()...)
-	challengeBytes = append(challengeBytes, pos.PokVC2.ToBytes()...)
+	challengeBytes = append(challengeBytes, pos.pokVC.ToBytes()...)
 
 	return challengeBytes
 }
@@ -198,12 +216,11 @@ func (pos *PoKOfSignature) ToBytes() []byte {
 // GenerateProof generates PoKOfSignatureProof proof from PoKOfSignature signature.
 func (pos *PoKOfSignature) GenerateProof(challengeHash *ml.Zr) *PoKOfSignatureProof {
 	return &PoKOfSignatureProof{
-		aPrime:   pos.aPrime,
-		aBar:     pos.aBar,
-		d:        pos.d,
-		proofVC1: pos.pokVC1.GenerateProof(challengeHash, pos.secrets1),
-		ProofVC2: pos.PokVC2.GenerateProof(challengeHash, pos.secrets2),
-		curve:    pos.curve,
+		aPrime:  pos.aPrime,
+		aBar:    pos.aBar,
+		d:       pos.d,
+		proofVC: pos.pokVC.GenerateProof(challengeHash, pos.secrets),
+		curve:   pos.curve,
 	}
 }
 
