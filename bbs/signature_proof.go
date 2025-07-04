@@ -31,17 +31,18 @@ type PoKOfSignatureProof struct {
 	curve *ml.Curve
 }
 
-// CHANGED -- doesn't have to be consistent with anything else
+// CHANGED -- has to be consistent somehow with (pos *PoKOfSignature) ToBytes() -- don't understand how
 // GetBytesForChallenge creates bytes for proof challenge.
 func (sp *PoKOfSignatureProof) GetBytesForChallenge(revealedMessages map[int]*SignatureMessage,
 	pubKey *PublicKeyWithGenerators) []byte {
 	hiddenCount := pubKey.MessagesCount - len(revealedMessages)
 
-	bytesLen := (7 + hiddenCount) * sp.curve.CompressedG1ByteSize //nolint:gomnd // TOD0 ASK ALE: where does this 7 come from???
+	bytesLen := (5 + hiddenCount) * sp.curve.CompressedG1ByteSize
 	bytes := make([]byte, 0, bytesLen)
 
 	bytes = append(bytes, sp.aBar.Bytes()...)
 	bytes = append(bytes, sp.aPrime.Bytes()...)
+	bytes = append(bytes, pubKey.H0.Bytes()...)
 	bytes = append(bytes, sp.ProofVC.Commitment.Bytes()...)
 
 	for i := range pubKey.H {

@@ -10,6 +10,7 @@ package bbs
 import (
 	"errors"
 	"fmt"
+	"log"
 	"sort"
 
 	// "sort"
@@ -148,10 +149,17 @@ func (bbs *BBSG2Pub) VerifyProofFr(messages []*SignatureMessage, proof, nonce, p
 	}
 
 	challengeBytes := signatureProof.GetBytesForChallenge(revealedMessages, publicKeyWithGenerators)
+
+	// EXPERIMENT by making it some set bytes
+	// challengeBytes = []byte("test")
+
 	proofNonce := ParseProofNonce(nonce, bbs.curve)
 	proofNonceBytes := proofNonce.ToBytes()
 	challengeBytes = append(challengeBytes, proofNonceBytes...)
+
 	proofChallenge := FrFromOKM(challengeBytes, bbs.curve)
+
+	log.Printf("Verify challenge: %v", proofChallenge.Bytes())
 
 	return signatureProof.Verify(proofChallenge, publicKeyWithGenerators, revealedMessages, messages)
 }
@@ -198,11 +206,16 @@ func (bbs *BBSG2Pub) DeriveProofZr(messagesFr []*SignatureMessage, sigBytes, non
 
 	challengeBytes := pokSignature.ToBytes()
 
+	// EXPERIMENT by making it some set bytes
+	// challengeBytes = []byte("test")
+
 	proofNonce := ParseProofNonce(nonce, bbs.curve)
 	proofNonceBytes := proofNonce.ToBytes()
 	challengeBytes = append(challengeBytes, proofNonceBytes...)
 
 	proofChallenge := FrFromOKM(challengeBytes, bbs.curve)
+
+	log.Printf("Proof challenge: %v", proofChallenge.Bytes())
 
 	proof := pokSignature.GenerateProof(proofChallenge)
 
@@ -210,7 +223,7 @@ func (bbs *BBSG2Pub) DeriveProofZr(messagesFr []*SignatureMessage, sigBytes, non
 
 	payloadBytes, err := payload.ToBytes()
 	if err != nil {
-		return nil, fmt.Errorf("derive proof: paylod to bytes: %w", err)
+		return nil, fmt.Errorf("derive proof: payload to bytes: %w", err)
 	}
 
 	signatureProofBytes := append(payloadBytes, proof.ToBytes()...)
@@ -268,7 +281,7 @@ func (bbs *BBSG2Pub) SignWithKeyB(b *ml.G1, messagesCount int, privKey *PrivateK
 	// 	return nil, fmt.Errorf("build generators from public key: %w", err)
 	// }
 
-	e, _ := bbs.lib.createRandSignatureFr(), bbs.lib.createRandSignatureFr()
+	e := bbs.lib.createRandSignatureFr()
 	exp := privKey.FR.Copy()
 	exp = exp.Plus(e)
 	exp.InvModP(bbs.curve.GroupOrder)

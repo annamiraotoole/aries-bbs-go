@@ -169,6 +169,7 @@ func (p *PoKOfSignatureProvider) PoKOfSignatureB(signature *Signature, messages 
 // 	return pokVC2, secrets2
 // }
 
+// CHANGED -- has to be consistent somehow with GetBytesForChallnge -- don't understand how
 // ToBytes converts PoKOfSignature to bytes.
 func (pos *PoKOfSignature) ToBytes() []byte {
 	challengeBytes := pos.aBar.Bytes()
