@@ -16,7 +16,6 @@ import (
 type PoKOfSignature struct {
 	aPrime *ml.G1
 	aBar   *ml.G1
-	d      *ml.G1
 
 	pokVC   *ProverCommittedG1
 	secrets []*ml.Zr
@@ -42,9 +41,9 @@ func (bl *BBSLib) NewPoKOfSignature(signature *Signature, messages []*SignatureM
 	return p.PoKOfSignature(signature, messages, revealedIndexes, pubKey)
 }
 
-type VC2SignatureProvider interface {
-	New(*ml.G1, *ml.Zr, *PublicKeyWithGenerators, *ml.Zr, []*SignatureMessage, map[int]*SignatureMessage) (*ProverCommittedG1, []*ml.Zr)
-}
+// type VC2SignatureProvider interface {
+// 	New(*ml.G1, *ml.Zr, *PublicKeyWithGenerators, *ml.Zr, []*SignatureMessage, map[int]*SignatureMessage) (*ProverCommittedG1, []*ml.Zr)
+// }
 
 type PoKOfSignatureProvider struct {
 	// VC2SignatureProvider
@@ -79,17 +78,6 @@ func (p *PoKOfSignatureProvider) PoKOfSignatureB(signature *Signature, messages 
 
 	aBar := b.Mul(FrToRepr(r))
 	aBar.Sub(aBarDenom)
-
-	const basesOffset = 2
-	cb := NewCommitmentBuilder(len(revealedIndexes) + basesOffset)
-	cb.Add(signature.curve.GenG1, signature.curve.NewZrFromInt(1))
-
-	// loop to add the base and exp for each revealed attribute
-	for _, idx := range revealedIndexes {
-		cb.Add(pubKey.H[messages[idx].Idx], messages[idx].FR)
-	}
-
-	d := cb.Build()
 
 	committing := p.Bl.NewProverCommittingG1()
 	secrets := make([]*ml.Zr, 2)
@@ -138,36 +126,12 @@ func (p *PoKOfSignatureProvider) PoKOfSignatureB(signature *Signature, messages 
 	return &PoKOfSignature{
 		aPrime:           aPrime,
 		aBar:             aBar,
-		d:                d,
 		pokVC:            pokVC,
 		secrets:          secrets,
 		revealedMessages: revealedMessages,
 		curve:            p.Curve,
 	}, nil
 }
-
-// func (b *BBSLib) newVC1Signature(aPrime *ml.G1, h0 *ml.G1,
-// 	e, r2 *ml.Zr) (*ProverCommittedG1, []*ml.Zr) {
-// 	committing1 := b.NewProverCommittingG1()
-// 	secrets1 := make([]*ml.Zr, 2)
-
-// 	committing1.Commit(aPrime)
-
-// 	sigE := e.Copy()
-// 	sigE.Neg()
-// 	secrets1[0] = sigE
-
-// 	committing1.Commit(h0)
-
-// 	secrets1[1] = r2
-// 	pokVC1 := committing1.Finish()
-
-// 	return pokVC1, secrets1
-// }
-
-// type defaultVC2SignatureProvider struct {
-// 	bl *BBSLib
-// }
 
 // func (p *defaultVC2SignatureProvider) New(d *ml.G1, r3 *ml.Zr, pubKey *PublicKeyWithGenerators, sPrime *ml.Zr,
 // 	messages []*SignatureMessage, revealedMessages map[int]*SignatureMessage) (*ProverCommittedG1, []*ml.Zr) {
@@ -218,8 +182,7 @@ func (pos *PoKOfSignature) GenerateProof(challengeHash *ml.Zr) *PoKOfSignaturePr
 	return &PoKOfSignatureProof{
 		aPrime:  pos.aPrime,
 		aBar:    pos.aBar,
-		d:       pos.d,
-		proofVC: pos.pokVC.GenerateProof(challengeHash, pos.secrets),
+		ProofVC: pos.pokVC.GenerateProof(challengeHash, pos.secrets),
 		curve:   pos.curve,
 	}
 }

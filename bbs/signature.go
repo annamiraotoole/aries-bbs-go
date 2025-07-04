@@ -35,9 +35,8 @@ func (b *BBSLib) ParseSignature(sigBytes []byte) (*Signature, error) {
 	e := b.parseFr(sigBytes[b.g1CompressedSize : b.g1CompressedSize+frCompressedSize])
 
 	return &Signature{
-		A: pointG1,
-		E: e,
-		// S:     s,
+		A:     pointG1,
+		E:     e,
 		curve: b.curve,
 	}, nil
 }
