@@ -10,7 +10,8 @@ package bbs
 import (
 	"errors"
 	"fmt"
-	"sort"
+
+	// "sort"
 
 	ml "github.com/IBM/mathlib"
 )
@@ -30,7 +31,7 @@ func NewBBSLib(curve *ml.Curve) *BBSLib {
 		curve: curve,
 
 		// Signature length.
-		bls12381SignatureLen: curve.CompressedG1ByteSize + 2*frCompressedSize,
+		bls12381SignatureLen: curve.CompressedG1ByteSize + frCompressedSize, // only A and E now
 
 		// Default BLS 12-381 public key length in G2 field.
 		bls12381G2PublicKeyLen: curve.CompressedG2ByteSize,
@@ -105,116 +106,116 @@ func (bbs *BBSG2Pub) Sign(messages [][]byte, privKeyBytes []byte) ([]byte, error
 	return bbs.SignWithKey(messages, privKey)
 }
 
-// VerifyProof verifies BBS+ signature proof for one ore more revealed messages.
-func (bbs *BBSG2Pub) VerifyProof(messagesBytes [][]byte, proof, nonce, pubKeyBytes []byte) error {
+// // VerifyProof verifies BBS+ signature proof for one ore more revealed messages.
+// func (bbs *BBSG2Pub) VerifyProof(messagesBytes [][]byte, proof, nonce, pubKeyBytes []byte) error {
 
-	messages := MessagesToFr(messagesBytes, bbs.curve)
+// 	messages := MessagesToFr(messagesBytes, bbs.curve)
 
-	return bbs.VerifyProofFr(messages, proof, nonce, pubKeyBytes)
-}
+// 	return bbs.VerifyProofFr(messages, proof, nonce, pubKeyBytes)
+// }
 
-// VerifyProofFr verifies BBS+ signature proof for one ore more revealed messages.
-// The messages are supplied as scalars and not bytes.
-func (bbs *BBSG2Pub) VerifyProofFr(messages []*SignatureMessage, proof, nonce, pubKeyBytes []byte) error {
-	payload, err := ParsePoKPayload(proof)
-	if err != nil {
-		return fmt.Errorf("parse signature proof: %w", err)
-	}
+// // VerifyProofFr verifies BBS+ signature proof for one ore more revealed messages.
+// // The messages are supplied as scalars and not bytes.
+// func (bbs *BBSG2Pub) VerifyProofFr(messages []*SignatureMessage, proof, nonce, pubKeyBytes []byte) error {
+// 	payload, err := ParsePoKPayload(proof)
+// 	if err != nil {
+// 		return fmt.Errorf("parse signature proof: %w", err)
+// 	}
 
-	signatureProof, err := bbs.lib.ParseSignatureProof(proof[payload.LenInBytes():])
-	if err != nil {
-		return fmt.Errorf("parse signature proof: %w", err)
-	}
+// 	signatureProof, err := bbs.lib.ParseSignatureProof(proof[payload.LenInBytes():])
+// 	if err != nil {
+// 		return fmt.Errorf("parse signature proof: %w", err)
+// 	}
 
-	pubKey, err := bbs.lib.UnmarshalPublicKey(pubKeyBytes)
-	if err != nil {
-		return fmt.Errorf("parse public key: %w", err)
-	}
+// 	pubKey, err := bbs.lib.UnmarshalPublicKey(pubKeyBytes)
+// 	if err != nil {
+// 		return fmt.Errorf("parse public key: %w", err)
+// 	}
 
-	publicKeyWithGenerators, err := pubKey.ToPublicKeyWithGenerators(payload.MessagesCount)
-	if err != nil {
-		return fmt.Errorf("build generators from public key: %w", err)
-	}
+// 	publicKeyWithGenerators, err := pubKey.ToPublicKeyWithGenerators(payload.MessagesCount)
+// 	if err != nil {
+// 		return fmt.Errorf("build generators from public key: %w", err)
+// 	}
 
-	if len(payload.Revealed) > len(messages) {
-		return fmt.Errorf("payload revealed bigger from messages")
-	}
+// 	if len(payload.Revealed) > len(messages) {
+// 		return fmt.Errorf("payload revealed bigger from messages")
+// 	}
 
-	revealedMessages := make(map[int]*SignatureMessage)
-	for i := range payload.Revealed {
-		revealedMessages[payload.Revealed[i]] = messages[i]
-	}
+// 	revealedMessages := make(map[int]*SignatureMessage)
+// 	for i := range payload.Revealed {
+// 		revealedMessages[payload.Revealed[i]] = messages[i]
+// 	}
 
-	challengeBytes := signatureProof.GetBytesForChallenge(revealedMessages, publicKeyWithGenerators)
-	proofNonce := ParseProofNonce(nonce, bbs.curve)
-	proofNonceBytes := proofNonce.ToBytes()
-	challengeBytes = append(challengeBytes, proofNonceBytes...)
-	proofChallenge := FrFromOKM(challengeBytes, bbs.curve)
+// 	challengeBytes := signatureProof.GetBytesForChallenge(revealedMessages, publicKeyWithGenerators)
+// 	proofNonce := ParseProofNonce(nonce, bbs.curve)
+// 	proofNonceBytes := proofNonce.ToBytes()
+// 	challengeBytes = append(challengeBytes, proofNonceBytes...)
+// 	proofChallenge := FrFromOKM(challengeBytes, bbs.curve)
 
-	return signatureProof.Verify(proofChallenge, publicKeyWithGenerators, revealedMessages, messages)
-}
+// 	return signatureProof.Verify(proofChallenge, publicKeyWithGenerators, revealedMessages, messages)
+// }
 
-// DeriveProof derives a proof of BBS+ signature with some messages disclosed.
-func (bbs *BBSG2Pub) DeriveProof(messages [][]byte, sigBytes, nonce, pubKeyBytes []byte,
-	revealedIndexes []int) ([]byte, error) {
+// // DeriveProof derives a proof of BBS+ signature with some messages disclosed.
+// func (bbs *BBSG2Pub) DeriveProof(messages [][]byte, sigBytes, nonce, pubKeyBytes []byte,
+// 	revealedIndexes []int) ([]byte, error) {
 
-	return bbs.DeriveProofZr(MessagesToFr(messages, bbs.curve), sigBytes, nonce, pubKeyBytes, revealedIndexes)
-}
+// 	return bbs.DeriveProofZr(MessagesToFr(messages, bbs.curve), sigBytes, nonce, pubKeyBytes, revealedIndexes)
+// }
 
-// DeriveProofZr derives a proof of BBS+ signature with some messages disclosed.
-// The messages are supplied as scalars and not bytes.
-func (bbs *BBSG2Pub) DeriveProofZr(messagesFr []*SignatureMessage, sigBytes, nonce, pubKeyBytes []byte,
-	revealedIndexes []int) ([]byte, error) {
+// // DeriveProofZr derives a proof of BBS+ signature with some messages disclosed.
+// // The messages are supplied as scalars and not bytes.
+// func (bbs *BBSG2Pub) DeriveProofZr(messagesFr []*SignatureMessage, sigBytes, nonce, pubKeyBytes []byte,
+// 	revealedIndexes []int) ([]byte, error) {
 
-	if len(revealedIndexes) == 0 {
-		return nil, errors.New("no message to reveal")
-	}
+// 	if len(revealedIndexes) == 0 {
+// 		return nil, errors.New("no message to reveal")
+// 	}
 
-	sort.Ints(revealedIndexes)
+// 	sort.Ints(revealedIndexes)
 
-	messagesCount := len(messagesFr)
+// 	messagesCount := len(messagesFr)
 
-	pubKey, err := bbs.lib.UnmarshalPublicKey(pubKeyBytes)
-	if err != nil {
-		return nil, fmt.Errorf("parse public key: %w", err)
-	}
+// 	pubKey, err := bbs.lib.UnmarshalPublicKey(pubKeyBytes)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("parse public key: %w", err)
+// 	}
 
-	publicKeyWithGenerators, err := pubKey.ToPublicKeyWithGenerators(messagesCount)
-	if err != nil {
-		return nil, fmt.Errorf("build generators from public key: %w", err)
-	}
+// 	publicKeyWithGenerators, err := pubKey.ToPublicKeyWithGenerators(messagesCount)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("build generators from public key: %w", err)
+// 	}
 
-	signature, err := bbs.lib.ParseSignature(sigBytes)
-	if err != nil {
-		return nil, fmt.Errorf("parse signature: %w", err)
-	}
+// 	signature, err := bbs.lib.ParseSignature(sigBytes)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("parse signature: %w", err)
+// 	}
 
-	pokSignature, err := bbs.lib.NewPoKOfSignature(signature, messagesFr, revealedIndexes, publicKeyWithGenerators)
-	if err != nil {
-		return nil, fmt.Errorf("init proof of knowledge signature: %w", err)
-	}
+// 	pokSignature, err := bbs.lib.NewPoKOfSignature(signature, messagesFr, revealedIndexes, publicKeyWithGenerators)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("init proof of knowledge signature: %w", err)
+// 	}
 
-	challengeBytes := pokSignature.ToBytes()
+// 	challengeBytes := pokSignature.ToBytes()
 
-	proofNonce := ParseProofNonce(nonce, bbs.curve)
-	proofNonceBytes := proofNonce.ToBytes()
-	challengeBytes = append(challengeBytes, proofNonceBytes...)
+// 	proofNonce := ParseProofNonce(nonce, bbs.curve)
+// 	proofNonceBytes := proofNonce.ToBytes()
+// 	challengeBytes = append(challengeBytes, proofNonceBytes...)
 
-	proofChallenge := FrFromOKM(challengeBytes, bbs.curve)
+// 	proofChallenge := FrFromOKM(challengeBytes, bbs.curve)
 
-	proof := pokSignature.GenerateProof(proofChallenge)
+// 	proof := pokSignature.GenerateProof(proofChallenge)
 
-	payload := NewPoKPayload(messagesCount, revealedIndexes)
+// 	payload := NewPoKPayload(messagesCount, revealedIndexes)
 
-	payloadBytes, err := payload.ToBytes()
-	if err != nil {
-		return nil, fmt.Errorf("derive proof: paylod to bytes: %w", err)
-	}
+// 	payloadBytes, err := payload.ToBytes()
+// 	if err != nil {
+// 		return nil, fmt.Errorf("derive proof: paylod to bytes: %w", err)
+// 	}
 
-	signatureProofBytes := append(payloadBytes, proof.ToBytes()...)
+// 	signatureProofBytes := append(payloadBytes, proof.ToBytes()...)
 
-	return signatureProofBytes, nil
-}
+// 	return signatureProofBytes, nil
+// }
 
 // SignWithKey signs the one or more messages using BBS+ key pair.
 func (bbs *BBSG2Pub) SignWithKey(messages [][]byte, privKey *PrivateKey) ([]byte, error) {
@@ -292,7 +293,7 @@ func ComputeB(
 	key *PublicKeyWithGenerators,
 	curve *ml.Curve,
 ) *ml.G1 {
-	const basesOffset = 2
+	const basesOffset = 1 // remove use of S as exp on H0
 
 	cb := NewCommitmentBuilder(len(messages) + basesOffset)
 
@@ -353,19 +354,19 @@ func compareTwoPairings(p1 *ml.G1, q1 *ml.G2,
 	return p.IsUnity()
 }
 
-// ProofNonce is a nonce for Proof of Knowledge proof.
-type ProofNonce struct {
-	fr *ml.Zr
-}
+// // ProofNonce is a nonce for Proof of Knowledge proof.
+// type ProofNonce struct {
+// 	fr *ml.Zr
+// }
 
-// ParseProofNonce creates a new ProofNonce from bytes.
-func ParseProofNonce(proofNonceBytes []byte, curve *ml.Curve) *ProofNonce {
-	return &ProofNonce{
-		FrFromOKM(proofNonceBytes, curve),
-	}
-}
+// // ParseProofNonce creates a new ProofNonce from bytes.
+// func ParseProofNonce(proofNonceBytes []byte, curve *ml.Curve) *ProofNonce {
+// 	return &ProofNonce{
+// 		FrFromOKM(proofNonceBytes, curve),
+// 	}
+// }
 
-// ToBytes converts ProofNonce into bytes.
-func (pn *ProofNonce) ToBytes() []byte {
-	return FrToRepr(pn.fr).Bytes()
-}
+// // ToBytes converts ProofNonce into bytes.
+// func (pn *ProofNonce) ToBytes() []byte {
+// 	return FrToRepr(pn.fr).Bytes()
+// }
