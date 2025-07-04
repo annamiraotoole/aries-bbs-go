@@ -323,7 +323,7 @@ func TestBlindSign(t *testing.T) {
 			}
 
 			// requester generates commitment to blind messages
-			cb := bbs.NewCommitmentBuilder(blindMsgCount + 1)
+			cb := bbs.NewCommitmentBuilder(blindMsgCount)
 			for i, msg := range blindedMessagesBytes {
 				if msg == nil {
 					continue
@@ -331,8 +331,8 @@ func TestBlindSign(t *testing.T) {
 
 				cb.Add(pubKeyWithGenerators.H[i], bbs.FrFromOKM(msg, curve))
 			}
-			blinding := curve.NewRandomZr(rand.Reader)
-			cb.Add(pubKeyWithGenerators.H0, blinding)
+			// blinding := curve.NewRandomZr(rand.Reader)
+			// cb.Add(pubKeyWithGenerators.H0, blinding)
 			b_req := cb.Build()
 
 			// signer adds its component
