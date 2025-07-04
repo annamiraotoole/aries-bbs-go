@@ -89,7 +89,7 @@ func TestBBSG2Pub_SignWithKeyPair(t *testing.T) {
 			signatureBytes, err := bls.SignWithKey(messagesBytes, privKey)
 			require.NoError(t, err)
 			require.NotEmpty(t, signatureBytes)
-			require.Len(t, signatureBytes, c.CompressedG1ByteSize+32) // only one Fr now
+			require.Len(t, signatureBytes, c.CompressedG1ByteSize+32)
 
 			pubKeyBytes, err := pubKey.Marshal()
 			require.NoError(t, err)
@@ -115,7 +115,7 @@ func TestBBSG2Pub_Sign(t *testing.T) {
 			signatureBytes, err := bls.Sign(messagesBytes, privKeyBytes)
 			require.NoError(t, err)
 			require.NotEmpty(t, signatureBytes)
-			require.Len(t, signatureBytes, curve.CompressedG1ByteSize+32) // only one Fr now
+			require.Len(t, signatureBytes, curve.CompressedG1ByteSize+32)
 
 			pubKeyBytes, err := pubKey.Marshal()
 			require.NoError(t, err)
@@ -331,8 +331,6 @@ func TestBlindSign(t *testing.T) {
 
 				cb.Add(pubKeyWithGenerators.H[i], bbs.FrFromOKM(msg, curve))
 			}
-			// blinding := curve.NewRandomZr(rand.Reader)
-			// cb.Add(pubKeyWithGenerators.H0, blinding)
 			b_req := cb.Build()
 
 			// signer adds its component
@@ -352,13 +350,6 @@ func TestBlindSign(t *testing.T) {
 			scheme := bbs.New(curve)
 			sig, err := scheme.SignWithKeyB(comm, len(messagesBytes), privKey)
 			require.NoError(t, err)
-
-			// requester unblinds
-			// signature, err := bbs.NewBBSLib(curve).ParseSignature(sig)
-			// require.NoError(t, err)
-			// signature.S = curve.ModAdd(signature.S, blinding, curve.GroupOrder)
-			// sig, err = signature.ToBytes()
-			// require.NoError(t, err)
 
 			// requester verifies
 			err = scheme.Verify(messagesBytes, sig, pubKeyBytes)

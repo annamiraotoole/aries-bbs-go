@@ -31,7 +31,7 @@ func NewBBSLib(curve *ml.Curve) *BBSLib {
 		curve: curve,
 
 		// Signature length.
-		bls12381SignatureLen: curve.CompressedG1ByteSize + frCompressedSize, // only A and E now
+		bls12381SignatureLen: curve.CompressedG1ByteSize + frCompressedSize,
 
 		// Default BLS 12-381 public key length in G2 field.
 		bls12381G2PublicKeyLen: curve.CompressedG2ByteSize,
@@ -273,14 +273,12 @@ func (bbs *BBSG2Pub) SignWithKeyB(b *ml.G1, messagesCount int, privKey *PrivateK
 	exp.InvModP(bbs.curve.GroupOrder)
 
 	b = b.Copy()
-	// b.Add(pubKeyWithGenerators.H0.Mul(s))
 
 	sig := b.Mul(FrToRepr(exp))
 
 	signature := &Signature{
-		A: sig,
-		E: e,
-		// S:     s,
+		A:     sig,
+		E:     e,
 		curve: bbs.curve,
 	}
 
@@ -288,7 +286,6 @@ func (bbs *BBSG2Pub) SignWithKeyB(b *ml.G1, messagesCount int, privKey *PrivateK
 }
 
 func ComputeB(
-	// s *ml.Zr, // remove use of S
 	messages []*SignatureMessage,
 	key *PublicKeyWithGenerators,
 	curve *ml.Curve,
@@ -298,7 +295,6 @@ func ComputeB(
 	cb := NewCommitmentBuilder(len(messages) + basesOffset)
 
 	cb.Add(curve.GenG1, curve.NewZrFromInt(1))
-	// cb.Add(key.H0, s) // remove use of S
 
 	for i := 0; i < len(messages); i++ {
 		cb.Add(key.H[messages[i].Idx], messages[i].FR)

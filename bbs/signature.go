@@ -15,9 +15,8 @@ import (
 
 // Signature defines BLS signature.
 type Signature struct {
-	A *ml.G1
-	E *ml.Zr
-	// S     *ml.Zr
+	A     *ml.G1
+	E     *ml.Zr
 	curve *ml.Curve
 }
 
@@ -34,7 +33,6 @@ func (b *BBSLib) ParseSignature(sigBytes []byte) (*Signature, error) {
 
 	// below line should now be equivalent to e := b.parseFr(sigBytes[b.g1CompressedSize:])
 	e := b.parseFr(sigBytes[b.g1CompressedSize : b.g1CompressedSize+frCompressedSize])
-	// s := b.parseFr(sigBytes[b.g1CompressedSize+frCompressedSize:])
 
 	return &Signature{
 		A: pointG1,
@@ -50,7 +48,6 @@ func (s *Signature) ToBytes() ([]byte, error) {
 
 	copy(bytes, s.A.Compressed())
 	copy(bytes[s.curve.CompressedG1ByteSize:s.curve.CompressedG1ByteSize+frCompressedSize], s.E.Bytes())
-	// copy(bytes[s.curve.CompressedG1ByteSize+frCompressedSize:], s.S.Bytes())
 
 	return bytes, nil
 }
