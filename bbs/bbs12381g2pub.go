@@ -157,9 +157,11 @@ func (bbs *BBSG2Pub) VerifyProofFr(messages []*SignatureMessage, proof, nonce, p
 	proofNonceBytes := proofNonce.ToBytes()
 	challengeBytes = append(challengeBytes, proofNonceBytes...)
 
+	log.Printf("Verify challenge bytes length: %v", len(challengeBytes))
+
 	proofChallenge := FrFromOKM(challengeBytes, bbs.curve)
 
-	log.Printf("Verify challenge: %v", proofChallenge.Bytes())
+	log.Printf("Verify challenge: %x", proofChallenge.Bytes()[:16])
 
 	return signatureProof.Verify(proofChallenge, publicKeyWithGenerators, revealedMessages, messages)
 }
@@ -213,9 +215,11 @@ func (bbs *BBSG2Pub) DeriveProofZr(messagesFr []*SignatureMessage, sigBytes, non
 	proofNonceBytes := proofNonce.ToBytes()
 	challengeBytes = append(challengeBytes, proofNonceBytes...)
 
+	log.Printf("Proof challenge bytes length: %v", len(challengeBytes))
+
 	proofChallenge := FrFromOKM(challengeBytes, bbs.curve)
 
-	log.Printf("Proof challenge: %v", proofChallenge.Bytes())
+	log.Printf("Proof challenge: %x", proofChallenge.Bytes()[:16])
 
 	proof := pokSignature.GenerateProof(proofChallenge)
 

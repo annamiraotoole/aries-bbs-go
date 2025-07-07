@@ -8,6 +8,7 @@ package bbs
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 
@@ -41,15 +42,21 @@ func (sp *PoKOfSignatureProof) GetBytesForChallenge(revealedMessages map[int]*Si
 	bytes := make([]byte, 0, bytesLen)
 
 	bytes = append(bytes, sp.aBar.Bytes()...)
+	fmt.Println(hex.EncodeToString(sp.aBar.Bytes()[:4]))
 	bytes = append(bytes, sp.aPrime.Bytes()...)
-	bytes = append(bytes, pubKey.H0.Bytes()...)
-	bytes = append(bytes, sp.ProofVC.Commitment.Bytes()...)
+	fmt.Println(hex.EncodeToString(sp.aPrime.Bytes()[:4]))
+	bytes = append(bytes, sp.aBar.Bytes()...)
+	fmt.Println(hex.EncodeToString(sp.aBar.Bytes()[:4]))
 
 	for i := range pubKey.H {
 		if _, ok := revealedMessages[i]; !ok {
+			fmt.Println(hex.EncodeToString(pubKey.H[i].Bytes()[:4]))
 			bytes = append(bytes, pubKey.H[i].Bytes()...)
 		}
 	}
+
+	bytes = append(bytes, sp.ProofVC.Commitment.Bytes()...)
+	fmt.Println(hex.EncodeToString(sp.ProofVC.Commitment.Bytes()[:4]))
 
 	return bytes
 }
