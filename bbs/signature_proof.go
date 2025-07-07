@@ -33,12 +33,12 @@ type PoKOfSignatureProof struct {
 }
 
 // CHANGED -- has to be consistent somehow with (pos *PoKOfSignature) ToBytes() -- don't understand how
-// GetBytesForChallenge creates bytes for proof challenge.
+// GetBytesForChallenge creates bytes for verification challenge.
 func (sp *PoKOfSignatureProof) GetBytesForChallenge(revealedMessages map[int]*SignatureMessage,
 	pubKey *PublicKeyWithGenerators) []byte {
 	hiddenCount := pubKey.MessagesCount - len(revealedMessages)
 
-	bytesLen := (5 + hiddenCount) * sp.curve.CompressedG1ByteSize
+	bytesLen := (4 + hiddenCount) * sp.curve.CompressedG1ByteSize
 	bytes := make([]byte, 0, bytesLen)
 
 	bytes = append(bytes, sp.aBar.Bytes()...)
@@ -50,7 +50,7 @@ func (sp *PoKOfSignatureProof) GetBytesForChallenge(revealedMessages map[int]*Si
 
 	for i := range pubKey.H {
 		if _, ok := revealedMessages[i]; !ok {
-			fmt.Println("revealed base H", i, ":  ", hex.EncodeToString(pubKey.H[i].Bytes()[:4]))
+			fmt.Println("hidden base H", i, ":    ", hex.EncodeToString(pubKey.H[i].Bytes()[:4]))
 			bytes = append(bytes, pubKey.H[i].Bytes()...)
 		}
 	}
@@ -93,22 +93,26 @@ func (v *defaultVCProofVerifier) Verify(challenge *ml.Zr, pubKey *PublicKeyWithG
 	basesDisclosed = append(basesDisclosed, v.curve.GenG1)
 	exponents = append(exponents, v.curve.NewZrFromInt(1))
 
-	revealedMessagesInd := 0
+	revealedMessagesInd := 0 // ASK ALE: why do we need this index?
 
 	for i := range pubKey.H {
 		if _, ok := revealedMessages[i]; ok {
 			basesDisclosed = append(basesDisclosed, pubKey.H[i])
 			exponents = append(exponents, messages[revealedMessagesInd].FR)
+			fmt.Print("verifying against revealed base H [", i, "] ")
+			fmt.Print("which should match revealedMessagesInd FR:", messages[revealedMessagesInd].FR)
+			fmt.Println(" and message FR:", revealedMessages[i].FR)
 			revealedMessagesInd++
 		} else {
 			basesVC = append(basesVC, pubKey.H[i])
+			fmt.Print("verifying against hidden base H [", i, "]\n")
 		}
 	}
 
 	// TODO: expose 0
 	pr := v.curve.GenG1.Copy()
 	pr.Sub(v.curve.GenG1)
-	// at this point pr is zero
+	// at this point pr is zero -- ASK ALE, don't we want it to be G1??
 
 	for i := 0; i < len(basesDisclosed); i++ {
 		b := basesDisclosed[i]
@@ -118,7 +122,7 @@ func (v *defaultVCProofVerifier) Verify(challenge *ml.Zr, pubKey *PublicKeyWithG
 		pr.Add(g)
 	}
 
-	pr.Neg() // why are we negating?
+	pr.Neg() // ASK ALE: why are we negating?
 
 	err := ProofVC.Verify(basesVC, pr, challenge)
 	if err != nil {

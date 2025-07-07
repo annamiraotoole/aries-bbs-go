@@ -314,7 +314,8 @@ func ComputeB(
 
 	cb.Add(curve.GenG1, curve.NewZrFromInt(1))
 
-	for i := 0; i < len(messages); i++ {
+	for i := 0; i < len(messages); i++ { // ASK ALE: still okay to start from 0, since actually H0 is a seperate generator not in the list of H[i]s?
+		fmt.Println("ComputeB: H[", messages[i].Idx, "]: ")
 		cb.Add(key.H[messages[i].Idx], messages[i].FR)
 	}
 

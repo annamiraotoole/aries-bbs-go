@@ -90,9 +90,11 @@ func (p *PoKOfSignatureProvider) PoKOfSignatureB(signature *Signature, messages 
 	eCopy := signature.E.Copy()
 	eCopy.Mul(rInv)
 	secrets[0] = eCopy
+	fmt.Println("committing with aPrime")
 
 	committing.Commit(aBar)
 	secrets[1] = rInv
+	fmt.Println("committing with aBar")
 
 	revealedMessages := make(map[int]*SignatureMessage, len(revealedIndexes))
 
@@ -114,6 +116,8 @@ func (p *PoKOfSignatureProvider) PoKOfSignatureB(signature *Signature, messages 
 		}
 
 		committing.Commit(pubKey.H[msg.Idx])
+
+		fmt.Println("committing with hidden base H[", msg.Idx, "]: ")
 
 		sourceFR := msg.FR
 		hiddenFRCopy := sourceFR.Copy()
