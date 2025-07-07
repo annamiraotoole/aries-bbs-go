@@ -42,21 +42,21 @@ func (sp *PoKOfSignatureProof) GetBytesForChallenge(revealedMessages map[int]*Si
 	bytes := make([]byte, 0, bytesLen)
 
 	bytes = append(bytes, sp.aBar.Bytes()...)
-	fmt.Println(hex.EncodeToString(sp.aBar.Bytes()[:4]))
+	fmt.Println("aBar:                ", hex.EncodeToString(sp.aBar.Bytes()[:4]))
 	bytes = append(bytes, sp.aPrime.Bytes()...)
-	fmt.Println(hex.EncodeToString(sp.aPrime.Bytes()[:4]))
+	fmt.Println("aPrime:              ", hex.EncodeToString(sp.aPrime.Bytes()[:4]))
 	bytes = append(bytes, sp.aBar.Bytes()...)
-	fmt.Println(hex.EncodeToString(sp.aBar.Bytes()[:4]))
+	fmt.Println("aBar:                ", hex.EncodeToString(sp.aBar.Bytes()[:4]))
 
 	for i := range pubKey.H {
 		if _, ok := revealedMessages[i]; !ok {
-			fmt.Println(hex.EncodeToString(pubKey.H[i].Bytes()[:4]))
+			fmt.Println("revealed base H", i, ":  ", hex.EncodeToString(pubKey.H[i].Bytes()[:4]))
 			bytes = append(bytes, pubKey.H[i].Bytes()...)
 		}
 	}
 
 	bytes = append(bytes, sp.ProofVC.Commitment.Bytes()...)
-	fmt.Println(hex.EncodeToString(sp.ProofVC.Commitment.Bytes()[:4]))
+	fmt.Println("VC commitment:       ", hex.EncodeToString(sp.ProofVC.Commitment.Bytes()[:4]))
 
 	return bytes
 }

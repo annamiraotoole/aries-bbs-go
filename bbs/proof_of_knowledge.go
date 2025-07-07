@@ -174,7 +174,7 @@ func (p *PoKOfSignatureProvider) PoKOfSignatureB(signature *Signature, messages 
 // ToBytes converts PoKOfSignature to bytes.
 func (pos *PoKOfSignature) ToBytes() []byte {
 	challengeBytes := pos.aBar.Bytes()
-	fmt.Println(hex.EncodeToString(pos.aBar.Bytes()[:4]))
+	fmt.Println("aBar:                ", hex.EncodeToString(pos.aBar.Bytes()[:4]))
 	challengeBytes = append(challengeBytes, pos.pokVC.ToBytes()...)
 
 	return challengeBytes
@@ -202,11 +202,11 @@ func (g *ProverCommittedG1) ToBytes() []byte {
 	bytes := make([]byte, 0)
 
 	for _, base := range g.Bases {
-		fmt.Println(hex.EncodeToString(base.Bytes()[:4]))
+		fmt.Println("proofG1 base:        ", hex.EncodeToString(base.Bytes()[:4]))
 		bytes = append(bytes, base.Bytes()...)
 	}
 
-	fmt.Println(hex.EncodeToString(g.Commitment.Bytes()[:4]))
+	fmt.Println("commitment:          ", hex.EncodeToString(g.Commitment.Bytes()[:4]))
 
 	return append(bytes, g.Commitment.Bytes()...)
 }

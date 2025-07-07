@@ -161,7 +161,7 @@ func (bbs *BBSG2Pub) VerifyProofFr(messages []*SignatureMessage, proof, nonce, p
 
 	proofChallenge := FrFromOKM(challengeBytes, bbs.curve)
 
-	log.Printf("Verify challenge: %x", proofChallenge.Bytes()[:16])
+	log.Printf("Verify challenge: %x", proofChallenge.Bytes()[:4])
 
 	return signatureProof.Verify(proofChallenge, publicKeyWithGenerators, revealedMessages, messages)
 }
@@ -219,7 +219,7 @@ func (bbs *BBSG2Pub) DeriveProofZr(messagesFr []*SignatureMessage, sigBytes, non
 
 	proofChallenge := FrFromOKM(challengeBytes, bbs.curve)
 
-	log.Printf("Proof challenge: %x", proofChallenge.Bytes()[:16])
+	log.Printf("Proof challenge: %x", proofChallenge.Bytes()[:4])
 
 	proof := pokSignature.GenerateProof(proofChallenge)
 
