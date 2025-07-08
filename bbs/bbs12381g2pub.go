@@ -12,8 +12,6 @@ import (
 	"fmt"
 	"sort"
 
-	// "sort"
-
 	ml "github.com/IBM/mathlib"
 )
 
@@ -148,11 +146,9 @@ func (bbs *BBSG2Pub) VerifyProofFr(messages []*SignatureMessage, proof, nonce, p
 	}
 
 	challengeBytes := signatureProof.GetBytesForChallenge(revealedMessages, publicKeyWithGenerators)
-
 	proofNonce := ParseProofNonce(nonce, bbs.curve)
 	proofNonceBytes := proofNonce.ToBytes()
 	challengeBytes = append(challengeBytes, proofNonceBytes...)
-
 	proofChallenge := FrFromOKM(challengeBytes, bbs.curve)
 
 	return signatureProof.Verify(proofChallenge, publicKeyWithGenerators, revealedMessages, messages)

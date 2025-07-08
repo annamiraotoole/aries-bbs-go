@@ -31,7 +31,7 @@ func (bl *BBSLib) NewPoKOfSignature(signature *Signature, messages []*SignatureM
 
 	p := &PoKOfSignatureProvider{
 		VCSignatureProvider: &defaultVCSignatureProvider{
-			Bl: bl,
+			bl: bl,
 		},
 		VerifySig: true,
 		Curve:     bl.curve,
@@ -71,6 +71,10 @@ func (p *PoKOfSignatureProvider) PoKOfSignatureB(signature *Signature, messages 
 		}
 	}
 
+	r := p.Bl.createRandSignatureFr()
+	aPrime := signature.A.Mul(FrToRepr(r))
+	aBar := b.Mul(FrToRepr(r))
+
 	revealedMessages := make(map[int]*SignatureMessage, len(revealedIndexes))
 
 	if len(messages) < len(revealedIndexes) {
@@ -81,10 +85,6 @@ func (p *PoKOfSignatureProvider) PoKOfSignatureB(signature *Signature, messages 
 	for _, ind := range revealedIndexes {
 		revealedMessages[messages[ind].Idx] = messages[ind]
 	}
-
-	r := p.Bl.createRandSignatureFr()
-	aPrime := signature.A.Mul(FrToRepr(r))
-	aBar := b.Mul(FrToRepr(r))
 
 	pokVC, secrets := p.New(signature, aPrime, aBar, b, r, pubKey, messages, revealedMessages)
 
@@ -99,7 +99,7 @@ func (p *PoKOfSignatureProvider) PoKOfSignatureB(signature *Signature, messages 
 }
 
 type defaultVCSignatureProvider struct {
-	Bl *BBSLib
+	bl *BBSLib
 }
 
 func (p *defaultVCSignatureProvider) New(signature *Signature, aPrime *ml.G1, aBar *ml.G1, b *ml.G1, r *ml.Zr, pubKey *PublicKeyWithGenerators, messages []*SignatureMessage, revealedMessages map[int]*SignatureMessage) (*ProverCommittedG1, []*ml.Zr) {
@@ -108,11 +108,11 @@ func (p *defaultVCSignatureProvider) New(signature *Signature, aPrime *ml.G1, aB
 
 	aBar.Sub(aBarDenom)
 
-	committing := p.Bl.NewProverCommittingG1()
+	committing := p.bl.NewProverCommittingG1()
 	secrets := make([]*ml.Zr, 2)
 
 	rInv := r.Copy()
-	rInv.InvModP(p.Bl.curve.GroupOrder)
+	rInv.InvModP(p.bl.curve.GroupOrder)
 
 	committing.Commit(aPrime)
 	eCopy := signature.E.Copy()

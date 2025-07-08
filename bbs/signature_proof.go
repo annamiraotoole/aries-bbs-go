@@ -31,7 +31,7 @@ type PoKOfSignatureProof struct {
 	curve *ml.Curve
 }
 
-// GetBytesForChallenge creates bytes for verification challenge.
+// GetBytesForChallenge creates bytes for proof challenge.
 func (sp *PoKOfSignatureProof) GetBytesForChallenge(revealedMessages map[int]*SignatureMessage,
 	pubKey *PublicKeyWithGenerators) []byte {
 	hiddenCount := pubKey.MessagesCount - len(revealedMessages)
