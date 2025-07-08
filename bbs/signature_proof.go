@@ -8,7 +8,6 @@ package bbs
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 
@@ -42,21 +41,20 @@ func (sp *PoKOfSignatureProof) GetBytesForChallenge(revealedMessages map[int]*Si
 	bytes := make([]byte, 0, bytesLen)
 
 	bytes = append(bytes, sp.aBar.Bytes()...)
-	fmt.Println("aBar:                ", hex.EncodeToString(sp.aBar.Bytes()[:4]))
+	fmt.Println("aBar:                ", shortGrStr(sp.aBar))
 	bytes = append(bytes, sp.aPrime.Bytes()...)
-	fmt.Println("aPrime:              ", hex.EncodeToString(sp.aPrime.Bytes()[:4]))
+	fmt.Println("aPrime:              ", shortGrStr(sp.aPrime))
 	bytes = append(bytes, sp.aBar.Bytes()...)
-	fmt.Println("aBar:                ", hex.EncodeToString(sp.aBar.Bytes()[:4]))
-
+	fmt.Println("aBar:                ", shortGrStr(sp.aBar))
 	for i := range pubKey.H {
 		if _, ok := revealedMessages[i]; !ok {
-			fmt.Println("hidden base H", i, ":    ", hex.EncodeToString(pubKey.H[i].Bytes()[:4]))
+			fmt.Println("hidden base H", i, ":    ", shortGrStr(pubKey.H[i]))
 			bytes = append(bytes, pubKey.H[i].Bytes()...)
 		}
 	}
 
 	bytes = append(bytes, sp.ProofVC.Commitment.Bytes()...)
-	fmt.Println("VC commitment:       ", hex.EncodeToString(sp.ProofVC.Commitment.Bytes()[:4]))
+	fmt.Println("VC commitment:       ", shortGrStr(sp.ProofVC.Commitment))
 
 	return bytes
 }
@@ -98,10 +96,11 @@ func (v *defaultVCProofVerifier) Verify(challenge *ml.Zr, pubKey *PublicKeyWithG
 	for i := range pubKey.H {
 		if _, ok := revealedMessages[i]; ok {
 			basesDisclosed = append(basesDisclosed, pubKey.H[i])
-			exponents = append(exponents, messages[revealedMessagesInd].FR)
+			// exponents = append(exponents, messages[revealedMessagesInd].FR)
+			exponents = append(exponents, revealedMessages[i].FR) // DEVIATION FROM ORIGINAL CODE
 			fmt.Print("verifying against revealed base H [", i, "] ")
-			fmt.Print("which should match revealedMessagesInd FR:", messages[revealedMessagesInd].FR)
-			fmt.Println(" and message FR:", revealedMessages[i].FR)
+			fmt.Print("which should match revealedMessagesInd FR:", shortFrStr(messages[revealedMessagesInd].FR))
+			fmt.Println(" and message FR:", shortFrStr(revealedMessages[i].FR))
 			revealedMessagesInd++
 		} else {
 			basesVC = append(basesVC, pubKey.H[i])
@@ -112,7 +111,7 @@ func (v *defaultVCProofVerifier) Verify(challenge *ml.Zr, pubKey *PublicKeyWithG
 	// TODO: expose 0
 	pr := v.curve.GenG1.Copy()
 	pr.Sub(v.curve.GenG1)
-	// at this point pr is zero -- ASK ALE, don't we want it to be G1??
+	// at this point pr is zero
 
 	for i := 0; i < len(basesDisclosed); i++ {
 		b := basesDisclosed[i]
@@ -122,7 +121,7 @@ func (v *defaultVCProofVerifier) Verify(challenge *ml.Zr, pubKey *PublicKeyWithG
 		pr.Add(g)
 	}
 
-	pr.Neg() // ASK ALE: why are we negating?
+	// pr.Neg() // DEVIATION FROM ORIGINAL CODE
 
 	err := ProofVC.Verify(basesVC, pr, challenge)
 	if err != nil {

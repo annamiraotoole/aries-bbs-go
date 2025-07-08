@@ -313,10 +313,11 @@ func ComputeB(
 	cb := NewCommitmentBuilder(len(messages) + basesOffset)
 
 	cb.Add(curve.GenG1, curve.NewZrFromInt(1))
+	fmt.Println("computing B with base G1: ", shortGrStr(curve.GenG1))
 
-	for i := 0; i < len(messages); i++ { // ASK ALE: still okay to start from 0, since actually H0 is a seperate generator not in the list of H[i]s?
-		fmt.Println("ComputeB: H[", messages[i].Idx, "]: ")
+	for i := 0; i < len(messages); i++ {
 		cb.Add(key.H[messages[i].Idx], messages[i].FR)
+		fmt.Printf("computing B with base H[%d ?= %d]: %s\n", messages[i].Idx, i, shortGrStr(key.H[messages[i].Idx]))
 	}
 
 	return cb.Build()
