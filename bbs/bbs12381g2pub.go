@@ -261,14 +261,6 @@ func (bbs *BBSG2Pub) SignWithKeyFr(messagesFr []*SignatureMessage, messagesCount
 // construction of blind signing protocols, where `b` is constructed
 // jointly by requester and signer.
 func (bbs *BBSG2Pub) SignWithKeyB(b *ml.G1, messagesCount int, privKey *PrivateKey) ([]byte, error) {
-	// var err error
-
-	// ASK ALE: no longer needed since B is already computed when it is passed in, using the generators?
-	// pubKey := privKey.PublicKey()
-	// pubKeyWithGenerators, err := pubKey.ToPublicKeyWithGenerators(messagesCount)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("build generators from public key: %w", err)
-	// }
 
 	e := bbs.lib.createRandSignatureFr()
 	exp := privKey.FR.Copy()
@@ -293,7 +285,7 @@ func ComputeB(
 	key *PublicKeyWithGenerators,
 	curve *ml.Curve,
 ) *ml.G1 {
-	const basesOffset = 1 // remove use of S as exp on H0
+	const basesOffset = 1
 
 	cb := NewCommitmentBuilder(len(messages) + basesOffset)
 

@@ -193,7 +193,6 @@ func (pg1 *ProofG1) ToBytes() []byte {
 	return bytes
 }
 
-// TODO must make consistent with new Proof encoding
 // ParseSignatureProof parses a signature proof.
 func (b *BBSLib) ParseSignatureProof(sigProofBytes []byte) (*PoKOfSignatureProof, error) {
 	// TODO does this need to be changed?
@@ -236,7 +235,6 @@ func (b *BBSLib) ParseSignatureProof(sigProofBytes []byte) (*PoKOfSignatureProof
 	}, nil
 }
 
-// DOUBLE CHECK -- should be generic and unchanged?
 // ParseProofG1 parses ProofG1 from bytes.
 func (b *BBSLib) ParseProofG1(bytes []byte) (*ProofG1, error) {
 	if len(bytes) < b.g1CompressedSize+4 {

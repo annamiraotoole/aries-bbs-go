@@ -30,9 +30,9 @@ func (bl *BBSLib) NewPoKOfSignature(signature *Signature, messages []*SignatureM
 	pubKey *PublicKeyWithGenerators) (*PoKOfSignature, error) {
 
 	p := &PoKOfSignatureProvider{
-		// VC2SignatureProvider: &defaultVC2SignatureProvider{
-		// 	bl: bl,
-		// },
+		VCSignatureProvider: &defaultVCSignatureProvider{
+			Bl: bl,
+		},
 		VerifySig: true,
 		Curve:     bl.curve,
 		Bl:        bl,
@@ -41,12 +41,12 @@ func (bl *BBSLib) NewPoKOfSignature(signature *Signature, messages []*SignatureM
 	return p.PoKOfSignature(signature, messages, revealedIndexes, pubKey)
 }
 
-// type VC2SignatureProvider interface {
-// 	New(*ml.G1, *ml.Zr, *PublicKeyWithGenerators, *ml.Zr, []*SignatureMessage, map[int]*SignatureMessage) (*ProverCommittedG1, []*ml.Zr)
-// }
+type VCSignatureProvider interface {
+	New(*Signature, *ml.G1, *ml.G1, *ml.G1, *ml.Zr, *PublicKeyWithGenerators, []*SignatureMessage, map[int]*SignatureMessage) (*ProverCommittedG1, []*ml.Zr)
+}
 
 type PoKOfSignatureProvider struct {
-	// VC2SignatureProvider
+	VCSignatureProvider
 
 	VerifySig bool
 
@@ -71,12 +71,41 @@ func (p *PoKOfSignatureProvider) PoKOfSignatureB(signature *Signature, messages 
 		}
 	}
 
+	revealedMessages := make(map[int]*SignatureMessage, len(revealedIndexes))
+
+	if len(messages) < len(revealedIndexes) {
+		return nil, fmt.Errorf("invalid size: %d revealed indexes is larger than %d messages", len(revealedIndexes),
+			len(messages))
+	}
+
+	for _, ind := range revealedIndexes {
+		revealedMessages[messages[ind].Idx] = messages[ind]
+	}
+
 	r := p.Bl.createRandSignatureFr()
 	aPrime := signature.A.Mul(FrToRepr(r))
+	aBar := b.Mul(FrToRepr(r))
+
+	pokVC, secrets := p.New(signature, aPrime, aBar, b, r, pubKey, messages, revealedMessages)
+
+	return &PoKOfSignature{
+		aPrime:           aPrime,
+		aBar:             aBar,
+		pokVC:            pokVC,
+		secrets:          secrets,
+		revealedMessages: revealedMessages,
+		curve:            p.Curve,
+	}, nil
+}
+
+type defaultVCSignatureProvider struct {
+	Bl *BBSLib
+}
+
+func (p *defaultVCSignatureProvider) New(signature *Signature, aPrime *ml.G1, aBar *ml.G1, b *ml.G1, r *ml.Zr, pubKey *PublicKeyWithGenerators, messages []*SignatureMessage, revealedMessages map[int]*SignatureMessage) (*ProverCommittedG1, []*ml.Zr) {
 
 	aBarDenom := aPrime.Mul(FrToRepr(signature.E))
 
-	aBar := b.Mul(FrToRepr(r))
 	aBar.Sub(aBarDenom)
 
 	committing := p.Bl.NewProverCommittingG1()
@@ -92,17 +121,6 @@ func (p *PoKOfSignatureProvider) PoKOfSignatureB(signature *Signature, messages 
 
 	committing.Commit(aBar)
 	secrets[1] = rInv
-
-	revealedMessages := make(map[int]*SignatureMessage, len(revealedIndexes))
-
-	if len(messages) < len(revealedIndexes) {
-		return nil, fmt.Errorf("invalid size: %d revealed indexes is larger than %d messages", len(revealedIndexes),
-			len(messages))
-	}
-
-	for _, ind := range revealedIndexes {
-		revealedMessages[messages[ind].Idx] = messages[ind]
-	}
 
 	// loop to add the bases for every hidden attribute
 	for _, msg := range messages {
@@ -123,53 +141,9 @@ func (p *PoKOfSignatureProvider) PoKOfSignatureB(signature *Signature, messages 
 
 	pokVC := committing.Finish()
 
-	return &PoKOfSignature{
-		aPrime:           aPrime,
-		aBar:             aBar,
-		pokVC:            pokVC,
-		secrets:          secrets,
-		revealedMessages: revealedMessages,
-		curve:            p.Curve,
-	}, nil
+	return pokVC, secrets
 }
 
-// func (p *defaultVC2SignatureProvider) New(d *ml.G1, r3 *ml.Zr, pubKey *PublicKeyWithGenerators, sPrime *ml.Zr,
-// 	messages []*SignatureMessage, revealedMessages map[int]*SignatureMessage) (*ProverCommittedG1, []*ml.Zr) {
-// 	messagesCount := len(messages)
-// 	committing2 := p.bl.NewProverCommittingG1()
-// 	baseSecretsCount := 2
-// 	secrets2 := make([]*ml.Zr, 0, baseSecretsCount+messagesCount)
-
-// 	committing2.Commit(d)
-
-// 	r3D := r3.Copy()
-// 	r3D.Neg()
-
-// 	secrets2 = append(secrets2, r3D)
-
-// 	committing2.Commit(pubKey.H0)
-
-// 	secrets2 = append(secrets2, sPrime)
-
-// 	for _, msg := range messages {
-// 		if _, ok := revealedMessages[msg.Idx]; ok {
-// 			continue
-// 		}
-
-// 		committing2.Commit(pubKey.H[msg.Idx])
-
-// 		sourceFR := msg.FR
-// 		hiddenFRCopy := sourceFR.Copy()
-
-// 		secrets2 = append(secrets2, hiddenFRCopy)
-// 	}
-
-// 	pokVC2 := committing2.Finish()
-
-// 	return pokVC2, secrets2
-// }
-
-// CHANGED -- has to be consistent somehow with GetBytesForChallnge -- don't understand how
 // ToBytes converts PoKOfSignature to bytes.
 func (pos *PoKOfSignature) ToBytes() []byte {
 	challengeBytes := pos.aBar.Bytes()
