@@ -134,7 +134,7 @@ func (p *defaultVCSignatureProvider) New(signature *Signature, aPrime *ml.G1, aB
 
 		sourceFR := msg.FR
 		hiddenFRCopy := sourceFR.Copy()
-		hiddenFRCopy.Neg()
+		hiddenFRCopy.Neg() // ASK ALE: equivalent line in original code doesn't negative the exponent, but the protocol should have it negated, why? maybe this is accounted for by a division later on?
 
 		secrets = append(secrets, hiddenFRCopy)
 	}

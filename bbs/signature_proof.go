@@ -113,7 +113,7 @@ func (v *defaultVCProofVerifier) Verify(challenge *ml.Zr, pubKey *PublicKeyWithG
 
 	err := ProofVC.Verify(basesVC, pr, challenge)
 	if err != nil {
-		return errors.New("bad proof")
+		return errors.New("bad proof of knowledge of signature")
 	}
 
 	return nil
@@ -164,10 +164,6 @@ func (pg1 *ProofG1) Verify(bases []*ml.G1, commitment *ml.G1, challenge *ml.Zr) 
 
 func (pg1 *ProofG1) getChallengeContribution(bases []*ml.G1, commitment *ml.G1,
 	challenge *ml.Zr) *ml.G1 {
-	// error if the number of bases does not match the number of responses
-	if len(bases) != len(pg1.Responses) {
-		panic(fmt.Sprintf("number of bases (%d) does not match number of responses (%d)", len(bases), len(pg1.Responses)))
-	}
 	points := append(bases, commitment)
 	scalars := append(pg1.Responses, challenge)
 
@@ -203,7 +199,6 @@ func (b *BBSLib) ParseSignatureProof(sigProofBytes []byte) (*PoKOfSignatureProof
 	g1Points := make([]*ml.G1, 2)
 	offset := 0
 
-	// Parses in order: aPrime, aBar
 	for i := range g1Points {
 		g1Point, err := b.curve.NewG1FromCompressed(sigProofBytes[offset : offset+b.g1CompressedSize])
 		if err != nil {
@@ -213,8 +208,6 @@ func (b *BBSLib) ParseSignatureProof(sigProofBytes []byte) (*PoKOfSignatureProof
 		g1Points[i] = g1Point
 		offset += b.g1CompressedSize
 	}
-
-	// Parses the SPK bytes
 
 	proofBytesLen := int(uint32FromBytes(sigProofBytes[offset : offset+4]))
 	offset += 4
