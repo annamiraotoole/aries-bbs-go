@@ -7,26 +7,10 @@ SPDX-License-Identifier: Apache-2.0
 package bbs
 
 import (
-	"encoding/hex"
-	"errors"
 	"fmt"
 
 	ml "github.com/IBM/mathlib"
 )
-
-func shortFrStr(fr *ml.Zr) string {
-	res := hex.EncodeToString(fr.Bytes()[:3])
-	res += "..."
-	res += hex.EncodeToString(fr.Bytes()[len(fr.Bytes())-3:])
-	return res
-}
-
-func shortGrStr(g *ml.G1) string {
-	res := hex.EncodeToString(g.Bytes()[:3])
-	res += "..."
-	res += hex.EncodeToString(g.Bytes()[len(g.Bytes())-3:])
-	return res
-}
 
 // PoKOfSignature is Proof of Knowledge of a Signature that is used by the prover to construct PoKOfSignatureProof.
 type PoKOfSignature struct {
@@ -80,12 +64,6 @@ func (p *PoKOfSignatureProvider) PoKOfSignature(signature *Signature, messages [
 func (p *PoKOfSignatureProvider) PoKOfSignatureB(signature *Signature, messages []*SignatureMessage, revealedIndexes []int,
 	pubKey *PublicKeyWithGenerators, b *ml.G1) (*PoKOfSignature, error) {
 
-	// print all messages
-	for i, msg := range messages {
-		fmt.Printf("message[%d]: idx: %d, FR: %s\n",
-			i, msg.Idx, shortFrStr(msg.FR))
-	}
-
 	if p.VerifySig {
 		err := signature.Verify(messages, pubKey)
 		if err != nil {
@@ -111,11 +89,9 @@ func (p *PoKOfSignatureProvider) PoKOfSignatureB(signature *Signature, messages 
 	eCopy := signature.E.Copy()
 	eDivR := eCopy.Mul(rInv)
 	secrets[0] = eDivR
-	fmt.Println("committing with aPrime: ", shortGrStr(aPrime))
 
 	committing.Commit(aBar)
 	secrets[1] = rInv
-	fmt.Println("committing with aBar: ", shortGrStr(aBar))
 
 	revealedMessages := make(map[int]*SignatureMessage, len(revealedIndexes))
 
@@ -128,7 +104,7 @@ func (p *PoKOfSignatureProvider) PoKOfSignatureB(signature *Signature, messages 
 		revealedMessages[messages[ind].Idx] = messages[ind]
 	}
 
-	// TODO loop to add the bases for every hidden attribute
+	// loop to add the bases for every hidden attribute
 	for _, msg := range messages {
 
 		// skip every revealed message
@@ -138,67 +114,12 @@ func (p *PoKOfSignatureProvider) PoKOfSignatureB(signature *Signature, messages 
 
 		committing.Commit(pubKey.H[msg.Idx])
 
-		fmt.Println("committing with hidden base H[", msg.Idx, "] = ", shortGrStr(pubKey.H[msg.Idx]), "and message FR (to be negated): ", shortFrStr(msg.FR))
-
 		sourceFR := msg.FR
 		hiddenFRCopy := sourceFR.Copy()
 		hiddenFRCopy.Neg()
 
 		secrets = append(secrets, hiddenFRCopy)
 	}
-
-	//////////////////////////////////////////////////////////////////////
-	// SANITY CHECK with body of verification code
-	//////////////////////////////////////////////////////////////////////
-
-	unknownSide := sumOfG1Products(committing.bases, secrets)
-
-	revealedMessagesCount := len(revealedMessages)
-
-	basesDisclosed := make([]*ml.G1, 0, 1+revealedMessagesCount)
-	exponents := make([]*ml.Zr, 0, 1+revealedMessagesCount)
-
-	fmt.Println("verifying against revealed base G1: ", shortGrStr(p.Curve.GenG1))
-	basesDisclosed = append(basesDisclosed, p.Curve.GenG1)
-	exponents = append(exponents, p.Curve.NewZrFromInt(1))
-
-	revealedMessagesInd := 0 // ASK ALE: why do we need this index?
-
-	for i := range pubKey.H {
-		if _, ok := revealedMessages[i]; ok {
-			basesDisclosed = append(basesDisclosed, pubKey.H[i])
-			// exponents = append(exponents, messages[revealedMessagesInd].FR)
-			exponents = append(exponents, revealedMessages[i].FR)
-			fmt.Print("verifying against revealed base H [", i, "] ")
-			fmt.Print("which should match revealedMessagesInd FR:", shortFrStr(messages[revealedMessagesInd].FR))
-			fmt.Println(" and message FR:", shortFrStr(revealedMessages[i].FR))
-			revealedMessagesInd++
-		}
-	}
-
-	// TODO: expose 0
-	pr := p.Curve.GenG1.Copy()
-	pr.Sub(p.Curve.GenG1)
-	// at this point pr is zero
-
-	for i := 0; i < len(basesDisclosed); i++ {
-		b := basesDisclosed[i]
-		s := exponents[i]
-
-		g := b.Mul(FrToRepr(s))
-		pr.Add(g)
-	}
-
-	// pr.Neg() // ASK ALE: why are we negating?
-
-	// check if the RHS and LHS are equal by subtracting them
-	unknownSide.Sub(pr)
-
-	if !unknownSide.IsInfinity() {
-		return nil, errors.New("RHS and LHS are not equal")
-	}
-
-	//////////////////////////////////////////////////////////////////////
 
 	pokVC := committing.Finish()
 
@@ -252,7 +173,6 @@ func (p *PoKOfSignatureProvider) PoKOfSignatureB(signature *Signature, messages 
 // ToBytes converts PoKOfSignature to bytes.
 func (pos *PoKOfSignature) ToBytes() []byte {
 	challengeBytes := pos.aBar.Bytes()
-	fmt.Println("aBar:                ", shortGrStr(pos.aBar))
 	challengeBytes = append(challengeBytes, pos.pokVC.ToBytes()...)
 
 	return challengeBytes
@@ -280,11 +200,8 @@ func (g *ProverCommittedG1) ToBytes() []byte {
 	bytes := make([]byte, 0)
 
 	for _, base := range g.Bases {
-		fmt.Println("proofG1 base:        ", shortGrStr(base))
 		bytes = append(bytes, base.Bytes()...)
 	}
-
-	fmt.Println("commitment:          ", shortGrStr(g.Commitment))
 
 	return append(bytes, g.Commitment.Bytes()...)
 }

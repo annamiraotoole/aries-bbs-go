@@ -79,9 +79,6 @@ func TestBBSG2Pub_Sign(t *testing.T) {
 
 func TestBBSG2Pub_DeriveProof(t *testing.T) {
 	for i, curve := range ml.Curves {
-		if i != 0 {
-			continue // TODO REMOVE LATER: skip all but the first curve for now
-		}
 		t.Run(fmt.Sprintf("with curve %s", ml.CurveIDToString(ml.CurveID(i))),
 			func(t *testing.T) {
 

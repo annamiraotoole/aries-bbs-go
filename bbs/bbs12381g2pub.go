@@ -10,7 +10,6 @@ package bbs
 import (
 	"errors"
 	"fmt"
-	"log"
 	"sort"
 
 	// "sort"
@@ -150,18 +149,11 @@ func (bbs *BBSG2Pub) VerifyProofFr(messages []*SignatureMessage, proof, nonce, p
 
 	challengeBytes := signatureProof.GetBytesForChallenge(revealedMessages, publicKeyWithGenerators)
 
-	// EXPERIMENT by making it some set bytes
-	// challengeBytes = []byte("test")
-
 	proofNonce := ParseProofNonce(nonce, bbs.curve)
 	proofNonceBytes := proofNonce.ToBytes()
 	challengeBytes = append(challengeBytes, proofNonceBytes...)
 
-	log.Printf("Verify challenge bytes length: %v", len(challengeBytes))
-
 	proofChallenge := FrFromOKM(challengeBytes, bbs.curve)
-
-	log.Printf("Verify challenge: %x", proofChallenge.Bytes()[:4])
 
 	return signatureProof.Verify(proofChallenge, publicKeyWithGenerators, revealedMessages, messages)
 }
@@ -208,18 +200,11 @@ func (bbs *BBSG2Pub) DeriveProofZr(messagesFr []*SignatureMessage, sigBytes, non
 
 	challengeBytes := pokSignature.ToBytes()
 
-	// EXPERIMENT by making it some set bytes
-	// challengeBytes = []byte("test")
-
 	proofNonce := ParseProofNonce(nonce, bbs.curve)
 	proofNonceBytes := proofNonce.ToBytes()
 	challengeBytes = append(challengeBytes, proofNonceBytes...)
 
-	log.Printf("Proof challenge bytes length: %v", len(challengeBytes))
-
 	proofChallenge := FrFromOKM(challengeBytes, bbs.curve)
-
-	log.Printf("Proof challenge: %x", proofChallenge.Bytes()[:4])
 
 	proof := pokSignature.GenerateProof(proofChallenge)
 
@@ -313,11 +298,9 @@ func ComputeB(
 	cb := NewCommitmentBuilder(len(messages) + basesOffset)
 
 	cb.Add(curve.GenG1, curve.NewZrFromInt(1))
-	fmt.Println("computing B with base G1: ", shortGrStr(curve.GenG1))
 
 	for i := 0; i < len(messages); i++ {
 		cb.Add(key.H[messages[i].Idx], messages[i].FR)
-		fmt.Printf("computing B with base H[%d ?= %d]: %s\n", messages[i].Idx, i, shortGrStr(key.H[messages[i].Idx]))
 	}
 
 	return cb.Build()

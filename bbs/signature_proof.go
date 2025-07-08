@@ -31,7 +31,6 @@ type PoKOfSignatureProof struct {
 	curve *ml.Curve
 }
 
-// CHANGED -- has to be consistent somehow with (pos *PoKOfSignature) ToBytes() -- don't understand how
 // GetBytesForChallenge creates bytes for verification challenge.
 func (sp *PoKOfSignatureProof) GetBytesForChallenge(revealedMessages map[int]*SignatureMessage,
 	pubKey *PublicKeyWithGenerators) []byte {
@@ -41,20 +40,15 @@ func (sp *PoKOfSignatureProof) GetBytesForChallenge(revealedMessages map[int]*Si
 	bytes := make([]byte, 0, bytesLen)
 
 	bytes = append(bytes, sp.aBar.Bytes()...)
-	fmt.Println("aBar:                ", shortGrStr(sp.aBar))
 	bytes = append(bytes, sp.aPrime.Bytes()...)
-	fmt.Println("aPrime:              ", shortGrStr(sp.aPrime))
 	bytes = append(bytes, sp.aBar.Bytes()...)
-	fmt.Println("aBar:                ", shortGrStr(sp.aBar))
 	for i := range pubKey.H {
 		if _, ok := revealedMessages[i]; !ok {
-			fmt.Println("hidden base H", i, ":    ", shortGrStr(pubKey.H[i]))
 			bytes = append(bytes, pubKey.H[i].Bytes()...)
 		}
 	}
 
 	bytes = append(bytes, sp.ProofVC.Commitment.Bytes()...)
-	fmt.Println("VC commitment:       ", shortGrStr(sp.ProofVC.Commitment))
 
 	return bytes
 }
@@ -91,27 +85,21 @@ func (v *defaultVCProofVerifier) Verify(challenge *ml.Zr, pubKey *PublicKeyWithG
 	basesDisclosed = append(basesDisclosed, v.curve.GenG1)
 	exponents = append(exponents, v.curve.NewZrFromInt(1))
 
-	revealedMessagesInd := 0 // ASK ALE: why do we need this index?
+	// revealedMessagesInd := 0 // DEVIATION FROM ORIGINAL CODE: this is not used in the new code
 
 	for i := range pubKey.H {
 		if _, ok := revealedMessages[i]; ok {
 			basesDisclosed = append(basesDisclosed, pubKey.H[i])
-			// exponents = append(exponents, messages[revealedMessagesInd].FR)
 			exponents = append(exponents, revealedMessages[i].FR) // DEVIATION FROM ORIGINAL CODE
-			fmt.Print("verifying against revealed base H [", i, "] ")
-			fmt.Print("which should match revealedMessagesInd FR:", shortFrStr(messages[revealedMessagesInd].FR))
-			fmt.Println(" and message FR:", shortFrStr(revealedMessages[i].FR))
-			revealedMessagesInd++
+			// revealedMessagesInd++ // DEVIATION FROM ORIGINAL CODE
 		} else {
 			basesVC = append(basesVC, pubKey.H[i])
-			fmt.Print("verifying against hidden base H [", i, "]\n")
 		}
 	}
 
 	// TODO: expose 0
 	pr := v.curve.GenG1.Copy()
 	pr.Sub(v.curve.GenG1)
-	// at this point pr is zero
 
 	for i := 0; i < len(basesDisclosed); i++ {
 		b := basesDisclosed[i]
