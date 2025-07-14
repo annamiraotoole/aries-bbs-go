@@ -15,7 +15,7 @@ import (
 )
 
 type VCProofVerifier interface {
-	Verify(*ml.Zr, *PublicKeyWithGenerators, map[int]*SignatureMessage, []*SignatureMessage, *ProofG1, *ml.G1, *ml.G1) error
+	Verify(*PublicKeyWithGenerators, map[int]*SignatureMessage, []*SignatureMessage, *ProofG1, *ml.G1, *ml.G1) error
 }
 
 // PoKOfSignatureProof defines BLS signature proof.
@@ -31,40 +31,23 @@ type PoKOfSignatureProof struct {
 	curve *ml.Curve
 }
 
-// GetBytesForChallenge creates bytes for proof challenge.
-func (sp *PoKOfSignatureProof) GetBasesForChallenge(revealedMessages map[int]*SignatureMessage,
-	pubKey *PublicKeyWithGenerators) []*ml.G1 {
-	hiddenCount := pubKey.MessagesCount - len(revealedMessages)
-
-	bases := make([]*ml.G1, 0, 2+hiddenCount)
-	bases = append(bases, sp.aPrime, sp.aBar)
-
-	for i := range pubKey.H {
-		if _, ok := revealedMessages[i]; !ok {
-			bases = append(bases, pubKey.H[i])
-		}
-	}
-
-	return bases
-}
-
 // Verify verifies PoKOfSignatureProof.
-func (sp *PoKOfSignatureProof) Verify(challenge *ml.Zr, pubKey *PublicKeyWithGenerators,
-	revealedMessages map[int]*SignatureMessage, messages []*SignatureMessage) error {
+func (sp *PoKOfSignatureProof) Verify(pubKey *PublicKeyWithGenerators,
+	revealedMessages map[int]*SignatureMessage, messages []*SignatureMessage, nonce []byte) error {
 
 	ok := compareTwoPairings(sp.aPrime, pubKey.w, sp.aBar, sp.curve.GenG2, sp.curve)
 	if !ok {
 		return errors.New("bad signature")
 	}
 
-	return sp.VCProofVerifier.Verify(challenge, pubKey, revealedMessages, messages, sp.ProofVC, sp.aPrime, sp.aBar)
+	return sp.VCProofVerifier.Verify(pubKey, revealedMessages, messages, sp.ProofVC, sp.aPrime, sp.aBar)
 }
 
 type defaultVCProofVerifier struct {
 	curve *ml.Curve
 }
 
-func (v *defaultVCProofVerifier) Verify(challenge *ml.Zr, pubKey *PublicKeyWithGenerators,
+func (v *defaultVCProofVerifier) Verify(pubKey *PublicKeyWithGenerators,
 	revealedMessages map[int]*SignatureMessage, messages []*SignatureMessage, ProofVC *ProofG1, aPrime *ml.G1, aBar *ml.G1) error {
 	revealedMessagesCount := len(revealedMessages)
 
@@ -104,8 +87,7 @@ func (v *defaultVCProofVerifier) Verify(challenge *ml.Zr, pubKey *PublicKeyWithG
 
 	// pr.Neg() // DEVIATION FROM ORIGINAL CODE
 
-	err := ProofVC.Verify(basesVC, pr, challenge)
-	if err != nil {
+	if !VerifyProofG1(v.curve, ProofVC, pr, basesVC) {
 		return errors.New("bad proof of knowledge of signature")
 	}
 

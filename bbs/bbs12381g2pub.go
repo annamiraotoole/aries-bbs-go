@@ -122,6 +122,7 @@ func (bbs *BBSG2Pub) VerifyProofFr(messages []*SignatureMessage, proof, nonce, p
 	if err != nil {
 		return fmt.Errorf("parse signature proof: %w", err)
 	}
+	signatureProof.ProofVC.Nonce = nonce
 
 	pubKey, err := bbs.lib.UnmarshalPublicKey(pubKeyBytes)
 	if err != nil {
@@ -142,10 +143,7 @@ func (bbs *BBSG2Pub) VerifyProofFr(messages []*SignatureMessage, proof, nonce, p
 		revealedMessages[payload.Revealed[i]] = messages[i]
 	}
 
-	bases := signatureProof.GetBasesForChallenge(revealedMessages, publicKeyWithGenerators)
-	proofChallenge := ComputeChallenge(bbs.curve, signatureProof.ProofVC.Commitment, bases, nonce)
-
-	return signatureProof.Verify(proofChallenge, publicKeyWithGenerators, revealedMessages, messages)
+	return signatureProof.Verify(publicKeyWithGenerators, revealedMessages, messages, nonce)
 }
 
 // DeriveProof derives a proof of BBS+ signature with some messages disclosed.

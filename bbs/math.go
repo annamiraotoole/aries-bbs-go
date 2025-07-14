@@ -72,8 +72,6 @@ func ComputeChallenge(c *ml.Curve, commitment *ml.G1, bases []*ml.G1, nonce []by
 	// add bytes for commitment
 	challengeBytes = append(challengeBytes, commitment.Bytes()...)
 	// add bytes for nonce
-	proofNonceBytes := FrFromOKM(c, nonce).Bytes()
-	challengeBytes = append(challengeBytes, proofNonceBytes...)
 	challengeBytes = append(challengeBytes, nonce...)
 	// convert final challenge bytes to a field element
 	challenge := FrFromOKM(c, challengeBytes)
@@ -98,11 +96,11 @@ func GenerateProof(c *ml.Curve, rng io.Reader, bases []*ml.G1, secrets []*ml.Zr,
 	return proof
 }
 
-func VerifyProofG1(c *ml.Curve, pg1 *ProofG1, bases []*ml.G1, nonce []byte) bool {
+func VerifyProofG1(c *ml.Curve, pg1 *ProofG1, R *ml.G1, bases []*ml.G1) bool {
 
 	challenge := ComputeChallenge(c, pg1.Commitment, bases, pg1.Nonce)
 
-	points := append(bases, pg1.Commitment)
+	points := append(bases, R)
 	scalars := append(pg1.Responses, challenge)
 
 	contribution := sumOfG1Products(points, scalars)
