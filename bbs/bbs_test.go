@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	ml "github.com/IBM/mathlib"
-	"github.com/hyperledger/aries-bbs-go/bbs"
+	"github.com/annamiraotoole/aries-bbs-go/bbs"
 	"github.com/stretchr/testify/require"
 )
 

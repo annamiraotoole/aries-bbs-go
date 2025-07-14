@@ -1,4 +1,4 @@
-module github.com/hyperledger/aries-bbs-go
+module github.com/annamiraotoole/aries-bbs-go
 
 go 1.20
 
