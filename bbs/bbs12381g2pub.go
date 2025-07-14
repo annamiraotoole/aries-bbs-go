@@ -183,20 +183,12 @@ func (bbs *BBSG2Pub) DeriveProofZr(messagesFr []*SignatureMessage, sigBytes, non
 		return nil, fmt.Errorf("parse signature: %w", err)
 	}
 
-	pokSignature, err := bbs.lib.NewPoKOfSignature(signature, messagesFr, revealedIndexes, publicKeyWithGenerators)
+	pokSignature, err := bbs.lib.NewPoKOfSignature(signature, messagesFr, revealedIndexes, publicKeyWithGenerators, nonce)
 	if err != nil {
 		return nil, fmt.Errorf("init proof of knowledge signature: %w", err)
 	}
 
-	challengeBytes := pokSignature.ToBytes()
-
-	proofNonce := ParseProofNonce(nonce, bbs.curve)
-	proofNonceBytes := proofNonce.ToBytes()
-	challengeBytes = append(challengeBytes, proofNonceBytes...)
-
-	proofChallenge := FrFromOKM(bbs.curve, challengeBytes)
-
-	proof := pokSignature.GenerateProof(proofChallenge)
+	proof := pokSignature.GenerateProof()
 
 	payload := NewPoKPayload(messagesCount, revealedIndexes)
 
@@ -259,7 +251,7 @@ func (bbs *BBSG2Pub) SignWithKeyB(b *ml.G1, messagesCount int, privKey *PrivateK
 
 	b = b.Copy()
 
-	sig := b.Mul(FrToRepr(exp))
+	sig := b.Mul(exp.Copy())
 
 	signature := &Signature{
 		A:     sig,
@@ -307,21 +299,4 @@ func (cb *commitmentBuilder) Add(base *ml.G1, scalar *ml.Zr) {
 
 func (cb *commitmentBuilder) Build() *ml.G1 {
 	return sumOfG1Products(cb.bases, cb.scalars)
-}
-
-// ProofNonce is a nonce for Proof of Knowledge proof.
-type ProofNonce struct {
-	fr *ml.Zr
-}
-
-// ParseProofNonce creates a new ProofNonce from bytes.
-func ParseProofNonce(proofNonceBytes []byte, curve *ml.Curve) *ProofNonce {
-	return &ProofNonce{
-		FrFromOKM(curve, proofNonceBytes),
-	}
-}
-
-// ToBytes converts ProofNonce into bytes.
-func (pn *ProofNonce) ToBytes() []byte {
-	return FrToRepr(pn.fr).Bytes()
 }

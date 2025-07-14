@@ -27,7 +27,7 @@ type PoKOfSignature struct {
 
 // NewPoKOfSignature creates a new PoKOfSignature.
 func (bl *BBSLib) NewPoKOfSignature(signature *Signature, messages []*SignatureMessage, revealedIndexes []int,
-	pubKey *PublicKeyWithGenerators) (*PoKOfSignature, error) {
+	pubKey *PublicKeyWithGenerators, nonce []byte) (*PoKOfSignature, error) {
 
 	p := &PoKOfSignatureProvider{
 		VCSignatureProvider: &defaultVCSignatureProvider{
@@ -38,11 +38,11 @@ func (bl *BBSLib) NewPoKOfSignature(signature *Signature, messages []*SignatureM
 		Bl:        bl,
 	}
 
-	return p.PoKOfSignature(signature, messages, revealedIndexes, pubKey)
+	return p.PoKOfSignature(signature, messages, revealedIndexes, pubKey, nonce)
 }
 
 type VCSignatureProvider interface {
-	New(*Signature, *ml.G1, *ml.G1, *ml.G1, *ml.Zr, *PublicKeyWithGenerators, []*SignatureMessage, map[int]*SignatureMessage) (*ProofG1, []*ml.Zr)
+	New(*Signature, *ml.G1, *ml.G1, *ml.G1, *ml.Zr, *PublicKeyWithGenerators, []*SignatureMessage, map[int]*SignatureMessage, []byte) (*ProofG1, []*ml.Zr)
 }
 
 type PoKOfSignatureProvider struct {
@@ -55,14 +55,14 @@ type PoKOfSignatureProvider struct {
 }
 
 func (p *PoKOfSignatureProvider) PoKOfSignature(signature *Signature, messages []*SignatureMessage, revealedIndexes []int,
-	pubKey *PublicKeyWithGenerators) (*PoKOfSignature, error) {
+	pubKey *PublicKeyWithGenerators, nonce []byte) (*PoKOfSignature, error) {
 	b := ComputeB(messages, pubKey, p.Bl.curve)
 
-	return p.PoKOfSignatureB(signature, messages, revealedIndexes, pubKey, b)
+	return p.PoKOfSignatureB(signature, messages, revealedIndexes, pubKey, b, nonce)
 }
 
 func (p *PoKOfSignatureProvider) PoKOfSignatureB(signature *Signature, messages []*SignatureMessage, revealedIndexes []int,
-	pubKey *PublicKeyWithGenerators, b *ml.G1) (*PoKOfSignature, error) {
+	pubKey *PublicKeyWithGenerators, b *ml.G1, nonce []byte) (*PoKOfSignature, error) {
 
 	if p.VerifySig {
 		err := signature.Verify(messages, pubKey)
@@ -72,8 +72,8 @@ func (p *PoKOfSignatureProvider) PoKOfSignatureB(signature *Signature, messages 
 	}
 
 	r := p.Bl.createRandSignatureFr()
-	aPrime := signature.A.Mul(FrToRepr(r))
-	aBar := b.Mul(FrToRepr(r))
+	aPrime := signature.A.Mul(r.Copy())
+	aBar := b.Mul(r.Copy())
 
 	revealedMessages := make(map[int]*SignatureMessage, len(revealedIndexes))
 
@@ -86,7 +86,7 @@ func (p *PoKOfSignatureProvider) PoKOfSignatureB(signature *Signature, messages 
 		revealedMessages[messages[ind].Idx] = messages[ind]
 	}
 
-	pokVC, secrets := p.New(signature, aPrime, aBar, b, r, pubKey, messages, revealedMessages)
+	pokVC, secrets := p.New(signature, aPrime, aBar, b, r, pubKey, messages, revealedMessages, nonce)
 
 	return &PoKOfSignature{
 		aPrime:           aPrime,
@@ -102,12 +102,12 @@ type defaultVCSignatureProvider struct {
 	bl *BBSLib
 }
 
-func (p *defaultVCSignatureProvider) New(signature *Signature, aPrime *ml.G1, aBar *ml.G1, b *ml.G1, r *ml.Zr, pubKey *PublicKeyWithGenerators, messages []*SignatureMessage, revealedMessages map[int]*SignatureMessage) (*ProofG1, []*ml.Zr) {
+func (p *defaultVCSignatureProvider) New(signature *Signature, aPrime *ml.G1, aBar *ml.G1, b *ml.G1, r *ml.Zr, pubKey *PublicKeyWithGenerators, messages []*SignatureMessage, revealedMessages map[int]*SignatureMessage, nonce []byte) (*ProofG1, []*ml.Zr) {
 
 	bases := make([]*ml.G1, 2)
 	secrets := make([]*ml.Zr, 2)
 
-	aBarDenom := aPrime.Mul(FrToRepr(signature.E))
+	aBarDenom := aPrime.Mul(signature.E.Copy())
 
 	aBar.Sub(aBarDenom)
 
@@ -143,21 +143,13 @@ func (p *defaultVCSignatureProvider) New(signature *Signature, aPrime *ml.G1, aB
 		secrets = append(secrets, hiddenFRCopy)
 	}
 
-	pokVC := GenerateProof(p.bl.curve, rng, bases, secrets)
+	pokVC := GenerateProof(p.bl.curve, rng, bases, secrets, nonce)
 
 	return pokVC, secrets
 }
 
-// ToBytes converts PoKOfSignature to bytes.
-func (pos *PoKOfSignature) ToBytes() []byte {
-	challengeBytes := pos.aBar.Bytes()
-	challengeBytes = append(challengeBytes, pos.pokVC.ToBytes()...)
-
-	return challengeBytes
-}
-
 // GenerateProof generates PoKOfSignatureProof proof from PoKOfSignature signature.
-func (pos *PoKOfSignature) GenerateProof(challengeHash *ml.Zr) *PoKOfSignatureProof {
+func (pos *PoKOfSignature) GenerateProof() *PoKOfSignatureProof {
 	return &PoKOfSignatureProof{
 		aPrime:  pos.aPrime,
 		aBar:    pos.aBar,

@@ -80,14 +80,11 @@ func ComputeChallenge(c *ml.Curve, commitment *ml.G1, bases []*ml.G1, nonce []by
 	return challenge
 }
 
-func GenerateProof(c *ml.Curve, rng io.Reader, bases []*ml.G1, secrets []*ml.Zr) *ProofG1 {
+func GenerateProof(c *ml.Curve, rng io.Reader, bases []*ml.G1, secrets []*ml.Zr, nonce []byte) *ProofG1 {
 	proverCommiting := NewProverCommittingG1()
 	for _, base := range bases {
 		proverCommiting.Commit(c, rng, base)
 	}
-
-	// TODO pick different nonce for each proof
-	nonce := []byte("nonce")
 
 	committing := proverCommiting.Finish()
 

@@ -55,7 +55,7 @@ func (s *Signature) ToBytes() ([]byte, error) {
 func (s *Signature) Verify(messages []*SignatureMessage, pubKey *PublicKeyWithGenerators) error {
 	p1 := s.A
 
-	q1 := s.curve.GenG2.Mul(FrToRepr(s.E))
+	q1 := s.curve.GenG2.Mul(s.E.Copy())
 	q1.Add(pubKey.w)
 
 	p2 := ComputeB(messages, pubKey, s.curve)

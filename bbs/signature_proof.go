@@ -98,7 +98,7 @@ func (v *defaultVCProofVerifier) Verify(challenge *ml.Zr, pubKey *PublicKeyWithG
 		b := basesDisclosed[i]
 		s := exponents[i]
 
-		g := b.Mul(FrToRepr(s))
+		g := b.Mul(s.Copy())
 		pr.Add(g)
 	}
 
