@@ -143,7 +143,7 @@ func (p *defaultVCSignatureProvider) New(signature *Signature, aPrime *ml.G1, aB
 		secrets = append(secrets, hiddenFRCopy)
 	}
 
-	pokVC := GenerateProof(p.bl.curve, rng, bases, secrets, nonce)
+	pokVC := GenerateProofG1(p.bl.curve, rng, bases, secrets, nonce)
 
 	return pokVC, secrets
 }

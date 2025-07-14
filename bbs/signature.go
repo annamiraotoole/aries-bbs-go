@@ -61,7 +61,7 @@ func (s *Signature) Verify(messages []*SignatureMessage, pubKey *PublicKeyWithGe
 	p2 := ComputeB(messages, pubKey, s.curve)
 
 	// checks if e(p1, q1) = e(p2, s.curve.GenG2)
-	if compareTwoPairings(p1, q1, p2, s.curve.GenG2, s.curve) {
+	if compareTwoPairings(s.curve, p1, q1, p2, s.curve.GenG2) {
 		return nil
 	}
 

@@ -28,8 +28,8 @@ const frCompressedSize = 32 // Size of a compressed field element in bytes
 ////////////////////////////////////////////////////////////////////////////////////
 
 // return true if e(p1, q1) == e(p2, q2)
-func compareTwoPairings(p1 *ml.G1, q1 *ml.G2,
-	p2 *ml.G1, q2 *ml.G2, curve *ml.Curve) bool {
+func compareTwoPairings(curve *ml.Curve, p1 *ml.G1, q1 *ml.G2,
+	p2 *ml.G1, q2 *ml.G2) bool {
 
 	// DEVIATION FROM aries-bbs-go, so that this function can be used black-box
 	p2Copy := p2.Copy()
@@ -78,7 +78,7 @@ func ComputeChallenge(c *ml.Curve, commitment *ml.G1, bases []*ml.G1, nonce []by
 	return challenge
 }
 
-func GenerateProof(c *ml.Curve, rng io.Reader, bases []*ml.G1, secrets []*ml.Zr, nonce []byte) *ProofG1 {
+func GenerateProofG1(c *ml.Curve, rng io.Reader, bases []*ml.G1, secrets []*ml.Zr, nonce []byte) *ProofG1 {
 	proverCommiting := NewProverCommittingG1()
 	for _, base := range bases {
 		proverCommiting.Commit(c, rng, base)

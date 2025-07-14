@@ -35,7 +35,7 @@ type PoKOfSignatureProof struct {
 func (sp *PoKOfSignatureProof) Verify(pubKey *PublicKeyWithGenerators,
 	revealedMessages map[int]*SignatureMessage, messages []*SignatureMessage, nonce []byte) error {
 
-	ok := compareTwoPairings(sp.aPrime, pubKey.w, sp.aBar, sp.curve.GenG2, sp.curve)
+	ok := compareTwoPairings(sp.curve, sp.aPrime, pubKey.w, sp.aBar, sp.curve.GenG2)
 	if !ok {
 		return errors.New("bad signature")
 	}
