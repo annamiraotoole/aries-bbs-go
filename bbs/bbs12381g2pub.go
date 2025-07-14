@@ -64,9 +64,6 @@ func New(curve *ml.Curve) *BBSG2Pub {
 	}
 }
 
-// Number of bytes in scalar compressed form.
-const frCompressedSize = 32
-
 // Verify makes BLS BBS12-381 signature verification.
 func (bbs *BBSG2Pub) Verify(messages [][]byte, sigBytes, pubKeyBytes []byte) error {
 	signature, err := bbs.lib.ParseSignature(sigBytes)
@@ -145,11 +142,8 @@ func (bbs *BBSG2Pub) VerifyProofFr(messages []*SignatureMessage, proof, nonce, p
 		revealedMessages[payload.Revealed[i]] = messages[i]
 	}
 
-	challengeBytes := signatureProof.GetBytesForChallenge(revealedMessages, publicKeyWithGenerators)
-	proofNonce := ParseProofNonce(nonce, bbs.curve)
-	proofNonceBytes := proofNonce.ToBytes()
-	challengeBytes = append(challengeBytes, proofNonceBytes...)
-	proofChallenge := FrFromOKM(challengeBytes, bbs.curve)
+	bases := signatureProof.GetBasesForChallenge(revealedMessages, publicKeyWithGenerators)
+	proofChallenge := ComputeChallenge(bbs.curve, signatureProof.ProofVC.Commitment, bases, nonce)
 
 	return signatureProof.Verify(proofChallenge, publicKeyWithGenerators, revealedMessages, messages)
 }
@@ -200,7 +194,7 @@ func (bbs *BBSG2Pub) DeriveProofZr(messagesFr []*SignatureMessage, sigBytes, non
 	proofNonceBytes := proofNonce.ToBytes()
 	challengeBytes = append(challengeBytes, proofNonceBytes...)
 
-	proofChallenge := FrFromOKM(challengeBytes, bbs.curve)
+	proofChallenge := FrFromOKM(bbs.curve, challengeBytes)
 
 	proof := pokSignature.GenerateProof(proofChallenge)
 
@@ -315,32 +309,6 @@ func (cb *commitmentBuilder) Build() *ml.G1 {
 	return sumOfG1Products(cb.bases, cb.scalars)
 }
 
-func sumOfG1Products(bases []*ml.G1, scalars []*ml.Zr) *ml.G1 {
-	var res *ml.G1
-
-	for i := 0; i < len(bases); i++ {
-		b := bases[i]
-		s := scalars[i]
-
-		g := b.Mul(FrToRepr(s))
-		if res == nil {
-			res = g
-		} else {
-			res.Add(g)
-		}
-	}
-
-	return res
-}
-
-func compareTwoPairings(p1 *ml.G1, q1 *ml.G2,
-	p2 *ml.G1, q2 *ml.G2, curve *ml.Curve) bool {
-	p := curve.Pairing2(q1, p1, q2, p2)
-	p = curve.FExp(p)
-
-	return p.IsUnity()
-}
-
 // ProofNonce is a nonce for Proof of Knowledge proof.
 type ProofNonce struct {
 	fr *ml.Zr
@@ -349,7 +317,7 @@ type ProofNonce struct {
 // ParseProofNonce creates a new ProofNonce from bytes.
 func ParseProofNonce(proofNonceBytes []byte, curve *ml.Curve) *ProofNonce {
 	return &ProofNonce{
-		FrFromOKM(proofNonceBytes, curve),
+		FrFromOKM(curve, proofNonceBytes),
 	}
 }
 

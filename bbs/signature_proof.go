@@ -32,34 +32,27 @@ type PoKOfSignatureProof struct {
 }
 
 // GetBytesForChallenge creates bytes for proof challenge.
-func (sp *PoKOfSignatureProof) GetBytesForChallenge(revealedMessages map[int]*SignatureMessage,
-	pubKey *PublicKeyWithGenerators) []byte {
+func (sp *PoKOfSignatureProof) GetBasesForChallenge(revealedMessages map[int]*SignatureMessage,
+	pubKey *PublicKeyWithGenerators) []*ml.G1 {
 	hiddenCount := pubKey.MessagesCount - len(revealedMessages)
 
-	bytesLen := (4 + hiddenCount) * sp.curve.CompressedG1ByteSize
-	bytes := make([]byte, 0, bytesLen)
+	bases := make([]*ml.G1, 0, 2+hiddenCount)
+	bases = append(bases, sp.aPrime, sp.aBar)
 
-	bytes = append(bytes, sp.aBar.Bytes()...)
-	bytes = append(bytes, sp.aPrime.Bytes()...)
-	bytes = append(bytes, sp.aBar.Bytes()...)
 	for i := range pubKey.H {
 		if _, ok := revealedMessages[i]; !ok {
-			bytes = append(bytes, pubKey.H[i].Bytes()...)
+			bases = append(bases, pubKey.H[i])
 		}
 	}
 
-	bytes = append(bytes, sp.ProofVC.Commitment.Bytes()...)
-
-	return bytes
+	return bases
 }
 
 // Verify verifies PoKOfSignatureProof.
 func (sp *PoKOfSignatureProof) Verify(challenge *ml.Zr, pubKey *PublicKeyWithGenerators,
 	revealedMessages map[int]*SignatureMessage, messages []*SignatureMessage) error {
-	aBar := sp.aBar.Copy()
-	aBar.Neg()
 
-	ok := compareTwoPairings(sp.aPrime, pubKey.w, aBar, sp.curve.GenG2, sp.curve)
+	ok := compareTwoPairings(sp.aPrime, pubKey.w, sp.aBar, sp.curve.GenG2, sp.curve)
 	if !ok {
 		return errors.New("bad signature")
 	}
@@ -136,20 +129,6 @@ func (sp *PoKOfSignatureProof) ToBytes() []byte {
 	return bytes
 }
 
-// ProofG1 is a proof of knowledge of a signature and hidden messages.
-type ProofG1 struct {
-	Commitment *ml.G1
-	Responses  []*ml.Zr
-}
-
-// NewProofG1 creates a new ProofG1.
-func NewProofG1(commitment *ml.G1, responses []*ml.Zr) *ProofG1 {
-	return &ProofG1{
-		Commitment: commitment,
-		Responses:  responses,
-	}
-}
-
 // Verify verifies the ProofG1.
 func (pg1 *ProofG1) Verify(bases []*ml.G1, commitment *ml.G1, challenge *ml.Zr) error {
 	contribution := pg1.getChallengeContribution(bases, commitment, challenge)
@@ -168,25 +147,6 @@ func (pg1 *ProofG1) getChallengeContribution(bases []*ml.G1, commitment *ml.G1,
 	scalars := append(pg1.Responses, challenge)
 
 	return sumOfG1Products(points, scalars)
-}
-
-// ToBytes converts ProofG1 to bytes.
-func (pg1 *ProofG1) ToBytes() []byte {
-	bytes := make([]byte, 0)
-
-	commitmentBytes := pg1.Commitment.Compressed()
-	bytes = append(bytes, commitmentBytes...)
-
-	lenBytes := make([]byte, 4)
-	binary.BigEndian.PutUint32(lenBytes, uint32(len(pg1.Responses)))
-	bytes = append(bytes, lenBytes...)
-
-	for i := range pg1.Responses {
-		responseBytes := FrToRepr(pg1.Responses[i]).Bytes()
-		bytes = append(bytes, responseBytes...)
-	}
-
-	return bytes
 }
 
 // ParseSignatureProof parses a signature proof.

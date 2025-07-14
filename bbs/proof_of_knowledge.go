@@ -17,7 +17,7 @@ type PoKOfSignature struct {
 	aPrime *ml.G1
 	aBar   *ml.G1
 
-	pokVC   *ProverCommittedG1
+	pokVC   *ProofG1
 	secrets []*ml.Zr
 
 	revealedMessages map[int]*SignatureMessage
@@ -42,7 +42,7 @@ func (bl *BBSLib) NewPoKOfSignature(signature *Signature, messages []*SignatureM
 }
 
 type VCSignatureProvider interface {
-	New(*Signature, *ml.G1, *ml.G1, *ml.G1, *ml.Zr, *PublicKeyWithGenerators, []*SignatureMessage, map[int]*SignatureMessage) (*ProverCommittedG1, []*ml.Zr)
+	New(*Signature, *ml.G1, *ml.G1, *ml.G1, *ml.Zr, *PublicKeyWithGenerators, []*SignatureMessage, map[int]*SignatureMessage) (*ProofG1, []*ml.Zr)
 }
 
 type PoKOfSignatureProvider struct {
@@ -102,24 +102,29 @@ type defaultVCSignatureProvider struct {
 	bl *BBSLib
 }
 
-func (p *defaultVCSignatureProvider) New(signature *Signature, aPrime *ml.G1, aBar *ml.G1, b *ml.G1, r *ml.Zr, pubKey *PublicKeyWithGenerators, messages []*SignatureMessage, revealedMessages map[int]*SignatureMessage) (*ProverCommittedG1, []*ml.Zr) {
+func (p *defaultVCSignatureProvider) New(signature *Signature, aPrime *ml.G1, aBar *ml.G1, b *ml.G1, r *ml.Zr, pubKey *PublicKeyWithGenerators, messages []*SignatureMessage, revealedMessages map[int]*SignatureMessage) (*ProofG1, []*ml.Zr) {
+
+	bases := make([]*ml.G1, 2)
+	secrets := make([]*ml.Zr, 2)
 
 	aBarDenom := aPrime.Mul(FrToRepr(signature.E))
 
 	aBar.Sub(aBarDenom)
 
-	committing := p.bl.NewProverCommittingG1()
-	secrets := make([]*ml.Zr, 2)
+	rng, err := p.bl.curve.Rand()
+	if err != nil {
+		panic(err)
+	}
 
 	rInv := r.Copy()
 	rInv.InvModP(p.bl.curve.GroupOrder)
 
-	committing.Commit(aPrime)
 	eCopy := signature.E.Copy()
 	eDivR := eCopy.Mul(rInv)
+	bases[0] = aPrime
 	secrets[0] = eDivR
 
-	committing.Commit(aBar)
+	bases[1] = aBar
 	secrets[1] = rInv
 
 	// loop to add the bases for every hidden attribute
@@ -130,16 +135,15 @@ func (p *defaultVCSignatureProvider) New(signature *Signature, aPrime *ml.G1, aB
 			continue
 		}
 
-		committing.Commit(pubKey.H[msg.Idx])
-
 		sourceFR := msg.FR
 		hiddenFRCopy := sourceFR.Copy()
 		hiddenFRCopy.Neg() // QUESTION: equivalent line in original code doesn't negative the exponent, but the protocol should have it negated, why? maybe this is accounted for by a division later on?
 
+		bases = append(bases, pubKey.H[msg.Idx])
 		secrets = append(secrets, hiddenFRCopy)
 	}
 
-	pokVC := committing.Finish()
+	pokVC := GenerateProof(p.bl.curve, rng, bases, secrets)
 
 	return pokVC, secrets
 }
@@ -157,76 +161,7 @@ func (pos *PoKOfSignature) GenerateProof(challengeHash *ml.Zr) *PoKOfSignaturePr
 	return &PoKOfSignatureProof{
 		aPrime:  pos.aPrime,
 		aBar:    pos.aBar,
-		ProofVC: pos.pokVC.GenerateProof(challengeHash, pos.secrets),
+		ProofVC: pos.pokVC,
 		curve:   pos.curve,
-	}
-}
-
-// ProverCommittedG1 helps to generate a ProofG1.
-type ProverCommittedG1 struct {
-	Bases           []*ml.G1
-	BlindingFactors []*ml.Zr
-	Commitment      *ml.G1
-}
-
-// ToBytes converts ProverCommittedG1 to bytes.
-func (g *ProverCommittedG1) ToBytes() []byte {
-	bytes := make([]byte, 0)
-
-	for _, base := range g.Bases {
-		bytes = append(bytes, base.Bytes()...)
-	}
-
-	return append(bytes, g.Commitment.Bytes()...)
-}
-
-// GenerateProof generates proof ProofG1 for all secrets.
-func (g *ProverCommittedG1) GenerateProof(challenge *ml.Zr, secrets []*ml.Zr) *ProofG1 {
-	responses := make([]*ml.Zr, len(g.Bases))
-
-	for i := range g.BlindingFactors {
-		c := challenge.Mul(secrets[i])
-
-		s := g.BlindingFactors[i].Minus(c)
-		responses[i] = s
-	}
-
-	return &ProofG1{
-		Commitment: g.Commitment,
-		Responses:  responses,
-	}
-}
-
-// ProverCommittingG1 is a proof of knowledge of messages in a vector commitment.
-type ProverCommittingG1 struct {
-	bases           []*ml.G1
-	BlindingFactors []*ml.Zr
-	b               *BBSLib
-}
-
-// NewProverCommittingG1 creates a new ProverCommittingG1.
-func (bl *BBSLib) NewProverCommittingG1() *ProverCommittingG1 {
-	return &ProverCommittingG1{
-		bases:           make([]*ml.G1, 0),
-		BlindingFactors: make([]*ml.Zr, 0),
-		b:               bl,
-	}
-}
-
-// Commit append a base point and randomly generated blinding factor.
-func (pc *ProverCommittingG1) Commit(base *ml.G1) {
-	pc.bases = append(pc.bases, base)
-	r := pc.b.createRandSignatureFr()
-	pc.BlindingFactors = append(pc.BlindingFactors, r)
-}
-
-// Finish helps to generate ProverCommittedG1 after commitment of all base points.
-func (pc *ProverCommittingG1) Finish() *ProverCommittedG1 {
-	commitment := sumOfG1Products(pc.bases, pc.BlindingFactors)
-
-	return &ProverCommittedG1{
-		Bases:           pc.bases,
-		BlindingFactors: pc.BlindingFactors,
-		Commitment:      commitment,
 	}
 }

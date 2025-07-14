@@ -10,7 +10,6 @@ import (
 	"crypto/rand"
 
 	ml "github.com/IBM/mathlib"
-	"golang.org/x/crypto/blake2b"
 )
 
 func (b *BBSLib) parseFr(data []byte) *ml.Zr {
@@ -27,29 +26,6 @@ var f2192Bytes = []byte{
 
 func f2192(curve *ml.Curve) *ml.Zr {
 	return curve.NewZrFromBytes(f2192Bytes)
-}
-
-func FrFromOKM(message []byte, curve *ml.Curve) *ml.Zr {
-	const (
-		eightBytes = 8
-		okmMiddle  = 24
-	)
-
-	// We pass a null key so error is impossible here.
-	h, _ := blake2b.New384(nil) //nolint:errcheck
-
-	// blake2b.digest() does not return an error.
-	_, _ = h.Write(message)
-	okm := h.Sum(nil)
-	emptyEightBytes := make([]byte, eightBytes)
-
-	elm := curve.NewZrFromBytes(append(emptyEightBytes, okm[:okmMiddle]...))
-	elm = elm.Mul(f2192(curve))
-
-	fr := curve.NewZrFromBytes(append(emptyEightBytes, okm[okmMiddle:]...))
-	elm = elm.Plus(fr)
-
-	return elm
 }
 
 func FrToRepr(fr *ml.Zr) *ml.Zr {

@@ -177,7 +177,7 @@ func TestBlindSign(t *testing.T) {
 					continue
 				}
 
-				cb.Add(pubKeyWithGenerators.H[i], bbs.FrFromOKM(msg, curve))
+				cb.Add(pubKeyWithGenerators.H[i], bbs.FrFromOKM(curve, msg))
 			}
 			b_req := cb.Build()
 
@@ -188,7 +188,7 @@ func TestBlindSign(t *testing.T) {
 					continue
 				}
 
-				cb.Add(pubKeyWithGenerators.H[i], bbs.FrFromOKM(msg, curve))
+				cb.Add(pubKeyWithGenerators.H[i], bbs.FrFromOKM(curve, msg))
 			}
 			cb.Add(b_req, curve.NewZrFromInt(1))
 			cb.Add(curve.GenG1, curve.NewZrFromInt(1))
