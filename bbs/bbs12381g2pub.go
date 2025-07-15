@@ -123,7 +123,6 @@ func (bbs *BBSG2Pub) VerifyProofFr(messages []*SignatureMessage, proof, nonce, p
 	if err != nil {
 		return fmt.Errorf("parse signature proof: %w", err)
 	}
-	signatureProof.ProofVC.Nonce = nonce
 
 	pubKey, err := bbs.lib.UnmarshalPublicKey(pubKeyBytes)
 	if err != nil {
