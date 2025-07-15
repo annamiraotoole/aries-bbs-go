@@ -10,6 +10,7 @@ import (
 	"fmt"
 
 	ml "github.com/IBM/mathlib"
+	zkp "github.com/annamiraotoole/mathlib-schnorr/schnorr"
 )
 
 // PoKOfSignature is Proof of Knowledge of a Signature that is used by the prover to construct PoKOfSignatureProof.
@@ -18,10 +19,10 @@ type PoKOfSignature struct {
 	aBar   *ml.G1
 	d      *ml.G1
 
-	pokVC1   *ProverCommittedG1
+	pokVC1   *zkp.ProverCommittedG1
 	secrets1 []*ml.Zr
 
-	PokVC2   *ProverCommittedG1
+	PokVC2   *zkp.ProverCommittedG1
 	secrets2 []*ml.Zr
 
 	revealedMessages map[int]*SignatureMessage
@@ -46,7 +47,7 @@ func (bl *BBSLib) NewPoKOfSignature(signature *Signature, messages []*SignatureM
 }
 
 type VC2SignatureProvider interface {
-	New(*ml.G1, *ml.Zr, *PublicKeyWithGenerators, *ml.Zr, []*SignatureMessage, map[int]*SignatureMessage) (*ProverCommittedG1, []*ml.Zr)
+	New(*ml.G1, *ml.Zr, *PublicKeyWithGenerators, *ml.Zr, []*SignatureMessage, map[int]*SignatureMessage) (*zkp.ProverCommittedG1, []*ml.Zr)
 }
 
 type PoKOfSignatureProvider struct {
@@ -128,7 +129,7 @@ func (p *PoKOfSignatureProvider) PoKOfSignatureB(signature *Signature, messages 
 }
 
 func (b *BBSLib) newVC1Signature(aPrime *ml.G1, h0 *ml.G1,
-	e, r2 *ml.Zr) (*ProverCommittedG1, []*ml.Zr) {
+	e, r2 *ml.Zr) (*zkp.ProverCommittedG1, []*ml.Zr) {
 
 	rng, err := b.curve.Rand()
 	if err != nil {
@@ -143,7 +144,7 @@ func (b *BBSLib) newVC1Signature(aPrime *ml.G1, h0 *ml.G1,
 	secrets1[0] = sigE
 
 	secrets1[1] = r2
-	pokVC1 := StartProofG1(b.curve, rng, bases1, secrets1)
+	pokVC1 := zkp.StartProofG1(b.curve, rng, bases1, secrets1)
 
 	return pokVC1, secrets1
 }
@@ -153,7 +154,7 @@ type defaultVC2SignatureProvider struct {
 }
 
 func (p *defaultVC2SignatureProvider) New(d *ml.G1, r3 *ml.Zr, pubKey *PublicKeyWithGenerators, sPrime *ml.Zr,
-	messages []*SignatureMessage, revealedMessages map[int]*SignatureMessage) (*ProverCommittedG1, []*ml.Zr) {
+	messages []*SignatureMessage, revealedMessages map[int]*SignatureMessage) (*zkp.ProverCommittedG1, []*ml.Zr) {
 	messagesCount := len(messages)
 	// committing2 := NewProverCommittingG1()
 	baseSecretsCount := 2
@@ -189,7 +190,7 @@ func (p *defaultVC2SignatureProvider) New(d *ml.G1, r3 *ml.Zr, pubKey *PublicKey
 		secrets2 = append(secrets2, hiddenFRCopy)
 	}
 
-	pokVC2 := StartProofG1(p.bl.curve, rng, bases2, secrets2)
+	pokVC2 := zkp.StartProofG1(p.bl.curve, rng, bases2, secrets2)
 
 	return pokVC2, secrets2
 }
@@ -202,8 +203,8 @@ func (pos *PoKOfSignature) GenerateProof(pubKey *PublicKeyWithGenerators, nonce 
 		aPrime:   pos.aPrime,
 		aBar:     pos.aBar,
 		d:        pos.d,
-		proofVC1: FinishProofG1(pos.curve, pos.pokVC1, pos.secrets1, challProvider),
-		ProofVC2: FinishProofG1(pos.curve, pos.PokVC2, pos.secrets2, challProvider),
+		proofVC1: zkp.FinishProofG1(pos.curve, pos.pokVC1, pos.secrets1, challProvider),
+		ProofVC2: zkp.FinishProofG1(pos.curve, pos.PokVC2, pos.secrets2, challProvider),
 		curve:    pos.curve,
 	}
 }

@@ -12,10 +12,11 @@ import (
 	"fmt"
 
 	ml "github.com/IBM/mathlib"
+	zkp "github.com/annamiraotoole/mathlib-schnorr/schnorr"
 )
 
 type VC2ProofVerifier interface {
-	Verify(*PublicKeyWithGenerators, map[int]*SignatureMessage, []*SignatureMessage, *ProofG1, *ml.G1, ChallengeProvider) error
+	Verify(*PublicKeyWithGenerators, map[int]*SignatureMessage, []*SignatureMessage, *zkp.ProofG1, *ml.G1, zkp.ChallengeProvider) error
 }
 
 // PoKOfSignatureProof defines BLS signature proof.
@@ -25,8 +26,8 @@ type PoKOfSignatureProof struct {
 	aBar   *ml.G1
 	d      *ml.G1
 
-	proofVC1 *ProofG1
-	ProofVC2 *ProofG1
+	proofVC1 *zkp.ProofG1
+	ProofVC2 *zkp.ProofG1
 
 	VC2ProofVerifier
 
@@ -101,7 +102,7 @@ func (cp *BBSChallProvider) GetChallenge() *ml.Zr {
 func (sp *PoKOfSignatureProof) Verify(pubKey *PublicKeyWithGenerators,
 	revealedMessages map[int]*SignatureMessage, messages []*SignatureMessage, nonce []byte) error {
 
-	ok := compareTwoPairings(sp.curve, sp.aPrime, pubKey.w, sp.aBar, sp.curve.GenG2)
+	ok := zkp.CompareTwoPairings(sp.curve, sp.aPrime, pubKey.w, sp.aBar, sp.curve.GenG2)
 	if !ok {
 		return errors.New("bad signature")
 	}
@@ -117,12 +118,12 @@ func (sp *PoKOfSignatureProof) Verify(pubKey *PublicKeyWithGenerators,
 	return sp.VC2ProofVerifier.Verify(pubKey, revealedMessages, messages, sp.ProofVC2, sp.d, challProvider)
 }
 
-func (sp *PoKOfSignatureProof) verifyVC1Proof(pubKey *PublicKeyWithGenerators, challProvider ChallengeProvider) error {
+func (sp *PoKOfSignatureProof) verifyVC1Proof(pubKey *PublicKeyWithGenerators, challProvider zkp.ChallengeProvider) error {
 	basesVC1 := []*ml.G1{sp.aPrime, pubKey.H0}
 	aBarD := sp.aBar.Copy()
 	aBarD.Sub(sp.d)
 
-	if !VerifyProofG1(sp.curve, sp.proofVC1, aBarD, basesVC1, challProvider) {
+	if !zkp.VerifyProofG1(sp.curve, sp.proofVC1, aBarD, basesVC1, challProvider) {
 		return errors.New("new verifyG1 function did not work on proofVC1")
 	}
 
@@ -134,8 +135,8 @@ type defaultVC2ProofVerifier struct {
 }
 
 func (v *defaultVC2ProofVerifier) Verify(pubKey *PublicKeyWithGenerators,
-	revealedMessages map[int]*SignatureMessage, messages []*SignatureMessage, ProofVC2 *ProofG1,
-	d *ml.G1, challProvider ChallengeProvider) error {
+	revealedMessages map[int]*SignatureMessage, messages []*SignatureMessage, ProofVC2 *zkp.ProofG1,
+	d *ml.G1, challProvider zkp.ChallengeProvider) error {
 	revealedMessagesCount := len(revealedMessages)
 
 	basesVC2 := make([]*ml.G1, 0, 2+pubKey.MessagesCount-revealedMessagesCount)
@@ -174,7 +175,7 @@ func (v *defaultVC2ProofVerifier) Verify(pubKey *PublicKeyWithGenerators,
 	pr.Neg()
 
 	// Verify the proof
-	if !VerifyProofG1(v.curve, ProofVC2, pr, basesVC2, challProvider) {
+	if !zkp.VerifyProofG1(v.curve, ProofVC2, pr, basesVC2, challProvider) {
 		return errors.New("new verifyG1 function did not work on ProofVC2")
 	}
 
@@ -198,26 +199,6 @@ func (sp *PoKOfSignatureProof) ToBytes() []byte {
 	bytes = append(bytes, sp.ProofVC2.ToBytes()...)
 
 	return bytes
-}
-
-// Verify verifies the ProofG1.
-func (pg1 *ProofG1) Verify(bases []*ml.G1, commitment *ml.G1, challenge *ml.Zr) error {
-	contribution := pg1.getChallengeContribution(bases, commitment, challenge)
-	contribution.Sub(pg1.Commitment)
-
-	if !contribution.IsInfinity() {
-		return errors.New("contribution is not zero")
-	}
-
-	return nil
-}
-
-func (pg1 *ProofG1) getChallengeContribution(bases []*ml.G1, commitment *ml.G1,
-	challenge *ml.Zr) *ml.G1 {
-	points := append(bases, commitment)
-	scalars := append(pg1.Responses, challenge)
-
-	return sumOfG1Products(points, scalars)
 }
 
 // ParseSignatureProof parses a signature proof.
@@ -268,7 +249,7 @@ func (b *BBSLib) ParseSignatureProof(sigProofBytes []byte) (*PoKOfSignatureProof
 }
 
 // ParseProofG1 parses ProofG1 from bytes.
-func (b *BBSLib) ParseProofG1(bytes []byte) (*ProofG1, error) {
+func (b *BBSLib) ParseProofG1(bytes []byte) (*zkp.ProofG1, error) {
 	if len(bytes) < b.g1CompressedSize+4 {
 		return nil, errors.New("invalid size of G1 signature proof")
 	}
@@ -294,5 +275,5 @@ func (b *BBSLib) ParseProofG1(bytes []byte) (*ProofG1, error) {
 		offset += frCompressedSize
 	}
 
-	return NewProofG1(commitment, responses), nil
+	return zkp.NewProofG1(commitment, responses), nil
 }

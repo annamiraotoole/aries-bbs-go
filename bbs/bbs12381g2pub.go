@@ -13,6 +13,7 @@ import (
 	"sort"
 
 	ml "github.com/IBM/mathlib"
+	zkp "github.com/annamiraotoole/mathlib-schnorr/schnorr"
 )
 
 type BBSLib struct {
@@ -313,5 +314,5 @@ func (cb *commitmentBuilder) Add(base *ml.G1, scalar *ml.Zr) {
 }
 
 func (cb *commitmentBuilder) Build() *ml.G1 {
-	return sumOfG1Products(cb.bases, cb.scalars)
+	return zkp.SumOfG1Products(cb.bases, cb.scalars)
 }

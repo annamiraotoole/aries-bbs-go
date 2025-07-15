@@ -14,12 +14,13 @@ import (
 	"io"
 
 	ml "github.com/IBM/mathlib"
+	zkp "github.com/annamiraotoole/mathlib-schnorr/schnorr"
 	"golang.org/x/crypto/hkdf"
 )
 
 var (
 	// nolint:gochecknoglobals
-	seedSize = frCompressedSize
+	seedSize = zkp.FrCompressedSize
 
 	// nolint:gochecknoglobals
 	generateKeySalt = "BBS-SIG-KEYGEN-SALT-"

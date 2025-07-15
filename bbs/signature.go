@@ -11,6 +11,7 @@ import (
 	"fmt"
 
 	ml "github.com/IBM/mathlib"
+	zkp "github.com/annamiraotoole/mathlib-schnorr/schnorr"
 )
 
 // Signature defines BLS signature.
@@ -63,7 +64,7 @@ func (s *Signature) Verify(messages []*SignatureMessage, pubKey *PublicKeyWithGe
 
 	p2 := ComputeB(s.S, messages, pubKey, s.curve)
 
-	if compareTwoPairings(s.curve, p1, q1, p2, s.curve.GenG2) {
+	if zkp.CompareTwoPairings(s.curve, p1, q1, p2, s.curve.GenG2) {
 		return nil
 	}
 
