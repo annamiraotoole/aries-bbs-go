@@ -29,7 +29,7 @@ func f2192(curve *ml.Curve) *ml.Zr {
 	return curve.NewZrFromBytes(f2192Bytes)
 }
 
-func FrFromOKM(message []byte, curve *ml.Curve) *ml.Zr {
+func FrFromOKM(curve *ml.Curve, message []byte) *ml.Zr {
 	const (
 		eightBytes = 8
 		okmMiddle  = 24

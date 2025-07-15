@@ -162,7 +162,7 @@ func (b *BBSLib) GenerateKeyPair(h func() hash.Hash, seed []byte) (*PublicKey, *
 		return nil, nil, err
 	}
 
-	privKeyFr := FrFromOKM(okm, b.curve)
+	privKeyFr := FrFromOKM(b.curve, okm)
 
 	privKey := &PrivateKey{
 		FR:    privKeyFr,

@@ -129,16 +129,21 @@ func (p *PoKOfSignatureProvider) PoKOfSignatureB(signature *Signature, messages 
 
 func (b *BBSLib) newVC1Signature(aPrime *ml.G1, h0 *ml.G1,
 	e, r2 *ml.Zr) (*ProverCommittedG1, []*ml.Zr) {
-	committing1 := b.NewProverCommittingG1()
+	committing1 := NewProverCommittingG1()
 	secrets1 := make([]*ml.Zr, 2)
 
-	committing1.Commit(aPrime)
+	rng, err := b.curve.Rand()
+	if err != nil {
+		panic(fmt.Errorf("failed to create random number generator: %w", err))
+	}
+
+	committing1.Commit(b.curve, rng, aPrime)
 
 	sigE := e.Copy()
 	sigE.Neg()
 	secrets1[0] = sigE
 
-	committing1.Commit(h0)
+	committing1.Commit(b.curve, rng, h0)
 
 	secrets1[1] = r2
 	pokVC1 := committing1.Finish()
@@ -153,18 +158,23 @@ type defaultVC2SignatureProvider struct {
 func (p *defaultVC2SignatureProvider) New(d *ml.G1, r3 *ml.Zr, pubKey *PublicKeyWithGenerators, sPrime *ml.Zr,
 	messages []*SignatureMessage, revealedMessages map[int]*SignatureMessage) (*ProverCommittedG1, []*ml.Zr) {
 	messagesCount := len(messages)
-	committing2 := p.bl.NewProverCommittingG1()
+	committing2 := NewProverCommittingG1()
 	baseSecretsCount := 2
 	secrets2 := make([]*ml.Zr, 0, baseSecretsCount+messagesCount)
 
-	committing2.Commit(d)
+	rng, err := p.bl.curve.Rand()
+	if err != nil {
+		panic(fmt.Errorf("failed to create random number generator: %w", err))
+	}
+
+	committing2.Commit(p.bl.curve, rng, d)
 
 	r3D := r3.Copy()
 	r3D.Neg()
 
 	secrets2 = append(secrets2, r3D)
 
-	committing2.Commit(pubKey.H0)
+	committing2.Commit(p.bl.curve, rng, pubKey.H0)
 
 	secrets2 = append(secrets2, sPrime)
 
@@ -173,7 +183,7 @@ func (p *defaultVC2SignatureProvider) New(d *ml.G1, r3 *ml.Zr, pubKey *PublicKey
 			continue
 		}
 
-		committing2.Commit(pubKey.H[msg.Idx])
+		committing2.Commit(p.bl.curve, rng, pubKey.H[msg.Idx])
 
 		sourceFR := msg.FR
 		hiddenFRCopy := sourceFR.Copy()
@@ -204,74 +214,5 @@ func (pos *PoKOfSignature) GenerateProof(challengeHash *ml.Zr) *PoKOfSignaturePr
 		proofVC1: pos.pokVC1.GenerateProof(challengeHash, pos.secrets1),
 		ProofVC2: pos.PokVC2.GenerateProof(challengeHash, pos.secrets2),
 		curve:    pos.curve,
-	}
-}
-
-// ProverCommittedG1 helps to generate a ProofG1.
-type ProverCommittedG1 struct {
-	Bases           []*ml.G1
-	BlindingFactors []*ml.Zr
-	Commitment      *ml.G1
-}
-
-// ToBytes converts ProverCommittedG1 to bytes.
-func (g *ProverCommittedG1) ToBytes() []byte {
-	bytes := make([]byte, 0)
-
-	for _, base := range g.Bases {
-		bytes = append(bytes, base.Bytes()...)
-	}
-
-	return append(bytes, g.Commitment.Bytes()...)
-}
-
-// GenerateProof generates proof ProofG1 for all secrets.
-func (g *ProverCommittedG1) GenerateProof(challenge *ml.Zr, secrets []*ml.Zr) *ProofG1 {
-	responses := make([]*ml.Zr, len(g.Bases))
-
-	for i := range g.BlindingFactors {
-		c := challenge.Mul(secrets[i])
-
-		s := g.BlindingFactors[i].Minus(c)
-		responses[i] = s
-	}
-
-	return &ProofG1{
-		Commitment: g.Commitment,
-		Responses:  responses,
-	}
-}
-
-// ProverCommittingG1 is a proof of knowledge of messages in a vector commitment.
-type ProverCommittingG1 struct {
-	bases           []*ml.G1
-	BlindingFactors []*ml.Zr
-	b               *BBSLib
-}
-
-// NewProverCommittingG1 creates a new ProverCommittingG1.
-func (bl *BBSLib) NewProverCommittingG1() *ProverCommittingG1 {
-	return &ProverCommittingG1{
-		bases:           make([]*ml.G1, 0),
-		BlindingFactors: make([]*ml.Zr, 0),
-		b:               bl,
-	}
-}
-
-// Commit append a base point and randomly generated blinding factor.
-func (pc *ProverCommittingG1) Commit(base *ml.G1) {
-	pc.bases = append(pc.bases, base)
-	r := pc.b.createRandSignatureFr()
-	pc.BlindingFactors = append(pc.BlindingFactors, r)
-}
-
-// Finish helps to generate ProverCommittedG1 after commitment of all base points.
-func (pc *ProverCommittingG1) Finish() *ProverCommittedG1 {
-	commitment := sumOfG1Products(pc.bases, pc.BlindingFactors)
-
-	return &ProverCommittedG1{
-		Bases:           pc.bases,
-		BlindingFactors: pc.BlindingFactors,
-		Commitment:      commitment,
 	}
 }

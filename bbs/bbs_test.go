@@ -329,7 +329,7 @@ func TestBlindSign(t *testing.T) {
 					continue
 				}
 
-				cb.Add(pubKeyWithGenerators.H[i], bbs.FrFromOKM(msg, curve))
+				cb.Add(pubKeyWithGenerators.H[i], bbs.FrFromOKM(curve, msg))
 			}
 			blinding := curve.NewRandomZr(rand.Reader)
 			cb.Add(pubKeyWithGenerators.H0, blinding)
@@ -342,7 +342,7 @@ func TestBlindSign(t *testing.T) {
 					continue
 				}
 
-				cb.Add(pubKeyWithGenerators.H[i], bbs.FrFromOKM(msg, curve))
+				cb.Add(pubKeyWithGenerators.H[i], bbs.FrFromOKM(curve, msg))
 			}
 			cb.Add(b_req, curve.NewZrFromInt(1))
 			cb.Add(curve.GenG1, curve.NewZrFromInt(1))
