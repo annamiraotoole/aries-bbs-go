@@ -6,7 +6,7 @@ toolchain go1.23.4
 
 require (
 	github.com/IBM/mathlib v0.0.3-0.20231011094432-44ee0eb539da
-	github.com/annamiraotoole/mathlib-schnorr v0.0.2
+	github.com/annamiraotoole/mathlib-schnorr v0.0.4
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/crypto v0.21.0
