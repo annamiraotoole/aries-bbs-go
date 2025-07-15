@@ -1,8 +1,8 @@
 github.com/IBM/mathlib v0.0.3-0.20231011094432-44ee0eb539da h1:qqGozq4tF6EOVnWoTgBoJGudRKKZXSAYnEtDggzTnsw=
 github.com/IBM/mathlib v0.0.3-0.20231011094432-44ee0eb539da/go.mod h1:Tco9QzE3fQzjMS7nPbHDeFfydAzctStf1Pa8hsh6Hjs=
 github.com/aead/siphash v1.0.1/go.mod h1:Nywa3cDsYNNK3gaciGTWPwHt0wlpNV15vwmswBAUSII=
-github.com/annamiraotoole/mathlib-schnorr v0.0.1 h1:8e65UTJs1QlEDRtzzPJBPGW91LhaJpNJdxLwvoAqgFs=
-github.com/annamiraotoole/mathlib-schnorr v0.0.1/go.mod h1:72z7VdVC36Xfrw5rASvviPKqFNFtb6LVogDFLBGSV10=
+github.com/annamiraotoole/mathlib-schnorr v0.0.2 h1:q+TlBmznW0Oz0/Z9JMTnIMkOR1bIj+U0OjyT0iSnfUI=
+github.com/annamiraotoole/mathlib-schnorr v0.0.2/go.mod h1:72z7VdVC36Xfrw5rASvviPKqFNFtb6LVogDFLBGSV10=
 github.com/bits-and-blooms/bitset v1.7.0 h1:YjAGVd3XmtK9ktAbX8Zg2g2PwLIMjGREZJHlV4j7NEo=
 github.com/bits-and-blooms/bitset v1.7.0/go.mod h1:gIdJ4wp64HaoK2YrL1Q5/N7Y16edYb8uY+O0FJTyyDA=
 github.com/btcsuite/btcd v0.20.1-beta/go.mod h1:wVuoA8VJLEcwgqHBwHmzLRazpKxTv13Px/pDuV7OomQ=
