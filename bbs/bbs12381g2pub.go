@@ -142,13 +142,13 @@ func (bbs *BBSG2Pub) VerifyProofFr(messages []*SignatureMessage, proof, nonce, p
 		revealedMessages[payload.Revealed[i]] = messages[i]
 	}
 
-	challengeBytes := signatureProof.GetBytesForChallenge(revealedMessages, publicKeyWithGenerators)
-	proofNonce := ParseProofNonce(nonce, bbs.curve)
-	proofNonceBytes := proofNonce.ToBytes()
-	challengeBytes = append(challengeBytes, proofNonceBytes...)
-	proofChallenge := FrFromOKM(bbs.curve, challengeBytes)
+	// challengeBytes := signatureProof.GetBytesForChallenge(revealedMessages, publicKeyWithGenerators)
+	// proofNonce := ParseProofNonce(nonce, bbs.curve)
+	// proofNonceBytes := proofNonce.ToBytes()
+	// challengeBytes = append(challengeBytes, proofNonceBytes...)
+	// proofChallenge := FrFromOKM(bbs.curve, challengeBytes)
 
-	return signatureProof.Verify(proofChallenge, publicKeyWithGenerators, revealedMessages, messages)
+	return signatureProof.Verify(publicKeyWithGenerators, revealedMessages, messages, nonce)
 }
 
 // DeriveProof derives a proof of BBS+ signature with some messages disclosed.
@@ -191,15 +191,7 @@ func (bbs *BBSG2Pub) DeriveProofZr(messagesFr []*SignatureMessage, sigBytes, non
 		return nil, fmt.Errorf("init proof of knowledge signature: %w", err)
 	}
 
-	challengeBytes := pokSignature.ToBytes()
-
-	proofNonce := ParseProofNonce(nonce, bbs.curve)
-	proofNonceBytes := proofNonce.ToBytes()
-	challengeBytes = append(challengeBytes, proofNonceBytes...)
-
-	proofChallenge := FrFromOKM(bbs.curve, challengeBytes)
-
-	proof := pokSignature.GenerateProof(proofChallenge)
+	proof := pokSignature.GenerateProof(publicKeyWithGenerators, nonce)
 
 	payload := NewPoKPayload(messagesCount, revealedIndexes)
 
@@ -322,21 +314,4 @@ func (cb *commitmentBuilder) Add(base *ml.G1, scalar *ml.Zr) {
 
 func (cb *commitmentBuilder) Build() *ml.G1 {
 	return sumOfG1Products(cb.bases, cb.scalars)
-}
-
-// ProofNonce is a nonce for Proof of Knowledge proof.
-type ProofNonce struct {
-	fr *ml.Zr
-}
-
-// ParseProofNonce creates a new ProofNonce from bytes.
-func ParseProofNonce(proofNonceBytes []byte, curve *ml.Curve) *ProofNonce {
-	return &ProofNonce{
-		FrFromOKM(curve, proofNonceBytes),
-	}
-}
-
-// ToBytes converts ProofNonce into bytes.
-func (pn *ProofNonce) ToBytes() []byte {
-	return pn.fr.Copy().Bytes()
 }

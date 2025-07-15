@@ -129,24 +129,21 @@ func (p *PoKOfSignatureProvider) PoKOfSignatureB(signature *Signature, messages 
 
 func (b *BBSLib) newVC1Signature(aPrime *ml.G1, h0 *ml.G1,
 	e, r2 *ml.Zr) (*ProverCommittedG1, []*ml.Zr) {
-	committing1 := NewProverCommittingG1()
-	secrets1 := make([]*ml.Zr, 2)
 
 	rng, err := b.curve.Rand()
 	if err != nil {
 		panic(fmt.Errorf("failed to create random number generator: %w", err))
 	}
 
-	committing1.Commit(b.curve, rng, aPrime)
+	bases1 := []*ml.G1{aPrime, h0}
+	secrets1 := make([]*ml.Zr, 2)
 
 	sigE := e.Copy()
 	sigE.Neg()
 	secrets1[0] = sigE
 
-	committing1.Commit(b.curve, rng, h0)
-
 	secrets1[1] = r2
-	pokVC1 := committing1.Finish()
+	pokVC1 := StartProofG1(b.curve, rng, bases1, secrets1)
 
 	return pokVC1, secrets1
 }
@@ -158,8 +155,9 @@ type defaultVC2SignatureProvider struct {
 func (p *defaultVC2SignatureProvider) New(d *ml.G1, r3 *ml.Zr, pubKey *PublicKeyWithGenerators, sPrime *ml.Zr,
 	messages []*SignatureMessage, revealedMessages map[int]*SignatureMessage) (*ProverCommittedG1, []*ml.Zr) {
 	messagesCount := len(messages)
-	committing2 := NewProverCommittingG1()
+	// committing2 := NewProverCommittingG1()
 	baseSecretsCount := 2
+	bases2 := make([]*ml.G1, 0, baseSecretsCount+messagesCount)
 	secrets2 := make([]*ml.Zr, 0, baseSecretsCount+messagesCount)
 
 	rng, err := p.bl.curve.Rand()
@@ -167,14 +165,14 @@ func (p *defaultVC2SignatureProvider) New(d *ml.G1, r3 *ml.Zr, pubKey *PublicKey
 		panic(fmt.Errorf("failed to create random number generator: %w", err))
 	}
 
-	committing2.Commit(p.bl.curve, rng, d)
+	bases2 = append(bases2, d)
 
 	r3D := r3.Copy()
 	r3D.Neg()
 
 	secrets2 = append(secrets2, r3D)
 
-	committing2.Commit(p.bl.curve, rng, pubKey.H0)
+	bases2 = append(bases2, pubKey.H0)
 
 	secrets2 = append(secrets2, sPrime)
 
@@ -183,7 +181,7 @@ func (p *defaultVC2SignatureProvider) New(d *ml.G1, r3 *ml.Zr, pubKey *PublicKey
 			continue
 		}
 
-		committing2.Commit(p.bl.curve, rng, pubKey.H[msg.Idx])
+		bases2 = append(bases2, pubKey.H[msg.Idx])
 
 		sourceFR := msg.FR
 		hiddenFRCopy := sourceFR.Copy()
@@ -191,28 +189,21 @@ func (p *defaultVC2SignatureProvider) New(d *ml.G1, r3 *ml.Zr, pubKey *PublicKey
 		secrets2 = append(secrets2, hiddenFRCopy)
 	}
 
-	pokVC2 := committing2.Finish()
+	pokVC2 := StartProofG1(p.bl.curve, rng, bases2, secrets2)
 
 	return pokVC2, secrets2
 }
 
-// ToBytes converts PoKOfSignature to bytes.
-func (pos *PoKOfSignature) ToBytes() []byte {
-	challengeBytes := pos.aBar.Bytes()
-	challengeBytes = append(challengeBytes, pos.pokVC1.ToBytes()...)
-	challengeBytes = append(challengeBytes, pos.PokVC2.ToBytes()...)
-
-	return challengeBytes
-}
-
 // GenerateProof generates PoKOfSignatureProof proof from PoKOfSignature signature.
-func (pos *PoKOfSignature) GenerateProof(challengeHash *ml.Zr) *PoKOfSignatureProof {
+func (pos *PoKOfSignature) GenerateProof(pubKey *PublicKeyWithGenerators, nonce []byte) *PoKOfSignatureProof {
+	challProvider := NewBBSChallProvider(pos.curve, pos.aPrime, pos.aBar, pos.d, pos.pokVC1.Commitment, pos.PokVC2.Commitment,
+		pubKey, pos.revealedMessages, nonce)
 	return &PoKOfSignatureProof{
 		aPrime:   pos.aPrime,
 		aBar:     pos.aBar,
 		d:        pos.d,
-		proofVC1: pos.pokVC1.GenerateProof(challengeHash, pos.secrets1),
-		ProofVC2: pos.PokVC2.GenerateProof(challengeHash, pos.secrets2),
+		proofVC1: FinishProofG1(pos.curve, pos.pokVC1, pos.secrets1, challProvider),
+		ProofVC2: FinishProofG1(pos.curve, pos.PokVC2, pos.secrets2, challProvider),
 		curve:    pos.curve,
 	}
 }

@@ -18,11 +18,7 @@ import (
 	"io"
 
 	ml "github.com/IBM/mathlib"
-	"golang.org/x/crypto/blake2b"
 )
-
-// DELETE once I get confirmation that this is not needed, so we can just use c.ScalarByteSize
-const frCompressedSize = 32 // Size of a compressed field element in bytes
 
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////
@@ -52,6 +48,7 @@ func NewProofG1(commitment *ml.G1, responses []*ml.Zr) *ProofG1 {
 	return &ProofG1{
 		Commitment: commitment,
 		Responses:  responses,
+		Nonce:      nil, // DEVIATION FROM aries-bbs-go, so that we can add nonce later
 	}
 }
 
@@ -63,42 +60,31 @@ func IsZero(c *ml.Curve, z *ml.Zr) bool {
 	return z.Equals(zero)
 }
 
-func ComputeChallenge(c *ml.Curve, commitment *ml.G1, bases []*ml.G1, nonce []byte) *ml.Zr {
-	challengeBytes := make([]byte, 0)
-	// add bytes for every base
-	for _, base := range bases {
-		challengeBytes = append(challengeBytes, base.Bytes()...)
-	}
-	// add bytes for commitment
-	challengeBytes = append(challengeBytes, commitment.Bytes()...)
-	// add bytes for nonce
-	challengeBytes = append(challengeBytes, nonce...)
-	// convert final challenge bytes to a field element
-	challenge := FrFromOKM(c, challengeBytes)
-	return challenge
+type ChallengeProvider interface {
+	GetChallenge() *ml.Zr
 }
 
-func GenerateProofG1(c *ml.Curve, rng io.Reader, bases []*ml.G1, secrets []*ml.Zr, nonce []byte) *ProofG1 {
+func StartProofG1(c *ml.Curve, rng io.Reader, bases []*ml.G1, secrets []*ml.Zr) *ProverCommittedG1 {
 	proverCommiting := NewProverCommittingG1()
 	for _, base := range bases {
 		proverCommiting.Commit(c, rng, base)
 	}
 
-	committing := proverCommiting.Finish()
+	return proverCommiting.Finish()
+}
 
-	challenge := ComputeChallenge(c, committing.Commitment, bases, nonce)
+func FinishProofG1(c *ml.Curve, prover *ProverCommittedG1, secrets []*ml.Zr, challProvider ChallengeProvider) *ProofG1 {
 
-	proof := committing.GenerateProof(challenge, secrets)
+	challenge := challProvider.GetChallenge()
 
-	// include nonce information for verifier
-	proof.Nonce = nonce
+	proof := prover.GenerateProof(challenge, secrets)
 
 	return proof
 }
 
-func VerifyProofG1(c *ml.Curve, pg1 *ProofG1, R *ml.G1, bases []*ml.G1) bool {
+func VerifyProofG1(c *ml.Curve, pg1 *ProofG1, R *ml.G1, bases []*ml.G1, challProvider ChallengeProvider) bool {
 
-	challenge := ComputeChallenge(c, pg1.Commitment, bases, pg1.Nonce)
+	challenge := challProvider.GetChallenge()
 
 	points := append(bases, R)
 	scalars := append(pg1.Responses, challenge)
@@ -157,42 +143,6 @@ func ParseProofG1(c *ml.Curve, bytes []byte) (*ProofG1, error) {
 	}
 
 	return NewProofG1(commitment, responses), nil
-}
-
-////////////////////////////////////////////////////////////////////////////////////
-/// HIDDEN LOGIC but should be refactored anyways
-/// currently is almost the same as in aries-bbs-go code
-////////////////////////////////////////////////////////////////////////////////////
-
-func FrFromOKM(c *ml.Curve, message []byte) *ml.Zr {
-	const (
-		eightBytes = 8
-		okmMiddle  = 24
-	)
-
-	// We pass a null key so error is impossible here.
-	h, _ := blake2b.New384(nil) //nolint:errcheck
-
-	// blake2b.digest() does not return an error.
-	_, _ = h.Write(message)
-	okm := h.Sum(nil)
-	emptyEightBytes := make([]byte, eightBytes)
-
-	elm := c.NewZrFromBytes(append(emptyEightBytes, okm[:okmMiddle]...))
-
-	f2192 := c.NewZrFromBytes([]byte{
-		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1,
-		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-	})
-
-	elm = elm.Mul(f2192)
-
-	fr := c.NewZrFromBytes(append(emptyEightBytes, okm[okmMiddle:]...))
-	elm = elm.Plus(fr)
-
-	return elm
 }
 
 ////////////////////////////////////////////////////////////////////////////////////

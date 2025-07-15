@@ -15,7 +15,7 @@ import (
 )
 
 type VC2ProofVerifier interface {
-	Verify(*ml.Zr, *PublicKeyWithGenerators, map[int]*SignatureMessage, []*SignatureMessage, *ProofG1, *ml.G1) error
+	Verify(*PublicKeyWithGenerators, map[int]*SignatureMessage, []*SignatureMessage, *ProofG1, *ml.G1, ChallengeProvider) error
 }
 
 // PoKOfSignatureProof defines BLS signature proof.
@@ -33,58 +33,97 @@ type PoKOfSignatureProof struct {
 	curve *ml.Curve
 }
 
-// GetBytesForChallenge creates bytes for proof challenge.
-func (sp *PoKOfSignatureProof) GetBytesForChallenge(revealedMessages map[int]*SignatureMessage,
-	pubKey *PublicKeyWithGenerators) []byte {
-	hiddenCount := pubKey.MessagesCount - len(revealedMessages)
+type BBSChallProvider struct {
+	curve            *ml.Curve
+	aPrime           *ml.G1
+	aBar             *ml.G1
+	d                *ml.G1
+	commitment1      *ml.G1
+	commitment2      *ml.G1
+	pubKey           *PublicKeyWithGenerators
+	revealedMessages map[int]*SignatureMessage
+	nonce            []byte
+}
 
-	bytesLen := (7 + hiddenCount) * sp.curve.CompressedG1ByteSize //nolint:gomnd
-	bytes := make([]byte, 0, bytesLen)
+func NewBBSChallProvider(curve *ml.Curve, aPrime, aBar, d, commitment1, commitment2 *ml.G1, pubKey *PublicKeyWithGenerators, revealedMessages map[int]*SignatureMessage, nonce []byte) *BBSChallProvider {
+	return &BBSChallProvider{
+		curve:            curve,
+		aPrime:           aPrime,
+		aBar:             aBar,
+		d:                d,
+		commitment1:      commitment1,
+		commitment2:      commitment2,
+		pubKey:           pubKey,
+		revealedMessages: revealedMessages,
+		nonce:            nonce,
+	}
+}
 
-	bytes = append(bytes, sp.aBar.Bytes()...)
-	bytes = append(bytes, sp.aPrime.Bytes()...)
-	bytes = append(bytes, pubKey.H0.Bytes()...)
-	bytes = append(bytes, sp.proofVC1.Commitment.Bytes()...)
-	bytes = append(bytes, sp.d.Bytes()...)
-	bytes = append(bytes, pubKey.H0.Bytes()...)
+func (cp *BBSChallProvider) GetChallenge() *ml.Zr {
+	hiddenCount := cp.pubKey.MessagesCount - len(cp.revealedMessages)
 
-	for i := range pubKey.H {
-		if _, ok := revealedMessages[i]; !ok {
-			bytes = append(bytes, pubKey.H[i].Bytes()...)
+	basesLen := (7 + hiddenCount) * cp.curve.CompressedG1ByteSize //nolint:gomnd
+	bases := make([]*ml.G1, 0, basesLen)
+
+	bases = append(bases, cp.aBar)
+	bases = append(bases, cp.aPrime)
+	bases = append(bases, cp.pubKey.H0)
+	bases = append(bases, cp.commitment1)
+	bases = append(bases, cp.d)
+	bases = append(bases, cp.pubKey.H0)
+
+	for i := range cp.pubKey.H {
+		if _, ok := cp.revealedMessages[i]; !ok {
+			bases = append(bases, cp.pubKey.H[i])
 		}
 	}
 
-	bytes = append(bytes, sp.ProofVC2.Commitment.Bytes()...)
+	bases = append(bases, cp.commitment2)
 
-	return bytes
+	challengeBytes := make([]byte, 0)
+
+	for _, base := range bases {
+		challengeBytes = append(challengeBytes, base.Bytes()...)
+	}
+
+	if cp.nonce == nil {
+		panic("nonce cannot be nil in ComputeChallenge")
+	}
+
+	challengeBytes = append(challengeBytes, NonceToFrBytes(cp.curve, cp.nonce)...)
+	// convert final challenge bytes to a field element
+	challenge := FrFromOKM(cp.curve, challengeBytes)
+
+	return challenge
 }
 
 // Verify verifies PoKOfSignatureProof.
-func (sp *PoKOfSignatureProof) Verify(challenge *ml.Zr, pubKey *PublicKeyWithGenerators,
-	revealedMessages map[int]*SignatureMessage, messages []*SignatureMessage) error {
-	aBar := sp.aBar.Copy()
+func (sp *PoKOfSignatureProof) Verify(pubKey *PublicKeyWithGenerators,
+	revealedMessages map[int]*SignatureMessage, messages []*SignatureMessage, nonce []byte) error {
 
-	ok := compareTwoPairings(sp.curve, sp.aPrime, pubKey.w, aBar, sp.curve.GenG2)
+	ok := compareTwoPairings(sp.curve, sp.aPrime, pubKey.w, sp.aBar, sp.curve.GenG2)
 	if !ok {
 		return errors.New("bad signature")
 	}
 
-	err := sp.verifyVC1Proof(challenge, pubKey)
+	challProvider := NewBBSChallProvider(sp.curve, sp.aPrime, sp.aBar, sp.d,
+		sp.proofVC1.Commitment, sp.ProofVC2.Commitment, pubKey, revealedMessages, nonce)
+
+	err := sp.verifyVC1Proof(pubKey, challProvider)
 	if err != nil {
 		return err
 	}
 
-	return sp.VC2ProofVerifier.Verify(challenge, pubKey, revealedMessages, messages, sp.ProofVC2, sp.d)
+	return sp.VC2ProofVerifier.Verify(pubKey, revealedMessages, messages, sp.ProofVC2, sp.d, challProvider)
 }
 
-func (sp *PoKOfSignatureProof) verifyVC1Proof(challenge *ml.Zr, pubKey *PublicKeyWithGenerators) error {
+func (sp *PoKOfSignatureProof) verifyVC1Proof(pubKey *PublicKeyWithGenerators, challProvider ChallengeProvider) error {
 	basesVC1 := []*ml.G1{sp.aPrime, pubKey.H0}
 	aBarD := sp.aBar.Copy()
 	aBarD.Sub(sp.d)
 
-	err := sp.proofVC1.Verify(basesVC1, aBarD, challenge)
-	if err != nil {
-		return errors.New("bad signature")
+	if !VerifyProofG1(sp.curve, sp.proofVC1, aBarD, basesVC1, challProvider) {
+		return errors.New("new verifyG1 function did not work on proofVC1")
 	}
 
 	return nil
@@ -94,9 +133,9 @@ type defaultVC2ProofVerifier struct {
 	curve *ml.Curve
 }
 
-func (v *defaultVC2ProofVerifier) Verify(challenge *ml.Zr, pubKey *PublicKeyWithGenerators,
+func (v *defaultVC2ProofVerifier) Verify(pubKey *PublicKeyWithGenerators,
 	revealedMessages map[int]*SignatureMessage, messages []*SignatureMessage, ProofVC2 *ProofG1,
-	d *ml.G1) error {
+	d *ml.G1, challProvider ChallengeProvider) error {
 	revealedMessagesCount := len(revealedMessages)
 
 	basesVC2 := make([]*ml.G1, 0, 2+pubKey.MessagesCount-revealedMessagesCount)
@@ -134,9 +173,9 @@ func (v *defaultVC2ProofVerifier) Verify(challenge *ml.Zr, pubKey *PublicKeyWith
 
 	pr.Neg()
 
-	err := ProofVC2.Verify(basesVC2, pr, challenge)
-	if err != nil {
-		return errors.New("bad signature")
+	// Verify the proof
+	if !VerifyProofG1(v.curve, ProofVC2, pr, basesVC2, challProvider) {
+		return errors.New("new verifyG1 function did not work on ProofVC2")
 	}
 
 	return nil
