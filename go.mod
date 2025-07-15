@@ -1,9 +1,15 @@
 module github.com/annamiraotoole/aries-bbs-go
 
-go 1.20
+go 1.23
+
+toolchain go1.23.4
+
+// TODO delete and put on latest release
+replace github.com/annamiraotoole/mathlib-schnorr => ../mathlib-schnorr
 
 require (
 	github.com/IBM/mathlib v0.0.3-0.20231011094432-44ee0eb539da
+	github.com/annamiraotoole/mathlib-schnorr v0.0.1 // TODO update to latest release
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/crypto v0.21.0

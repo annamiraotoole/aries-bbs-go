@@ -12,6 +12,7 @@ import (
 
 	ml "github.com/IBM/mathlib"
 	"github.com/annamiraotoole/aries-bbs-go/bbs"
+	zkp "github.com/annamiraotoole/mathlib-schnorr/schnorr"
 	"github.com/stretchr/testify/require"
 )
 
@@ -177,7 +178,7 @@ func TestBlindSign(t *testing.T) {
 					continue
 				}
 
-				cb.Add(pubKeyWithGenerators.H[i], bbs.FrFromOKM(curve, msg))
+				cb.Add(pubKeyWithGenerators.H[i], zkp.FrFromOKM(curve, msg))
 			}
 			b_req := cb.Build()
 
@@ -188,7 +189,7 @@ func TestBlindSign(t *testing.T) {
 					continue
 				}
 
-				cb.Add(pubKeyWithGenerators.H[i], bbs.FrFromOKM(curve, msg))
+				cb.Add(pubKeyWithGenerators.H[i], zkp.FrFromOKM(curve, msg))
 			}
 			cb.Add(b_req, curve.NewZrFromInt(1))
 			cb.Add(curve.GenG1, curve.NewZrFromInt(1))

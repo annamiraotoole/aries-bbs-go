@@ -13,6 +13,7 @@ import (
 	"sort"
 
 	ml "github.com/IBM/mathlib"
+	zkp "github.com/annamiraotoole/mathlib-schnorr/schnorr"
 )
 
 type BBSLib struct {
@@ -30,7 +31,7 @@ func NewBBSLib(curve *ml.Curve) *BBSLib {
 		curve: curve,
 
 		// Signature length.
-		bls12381SignatureLen: curve.CompressedG1ByteSize + frCompressedSize,
+		bls12381SignatureLen: curve.CompressedG1ByteSize + zkp.FrCompressedSize,
 
 		// Default BLS 12-381 public key length in G2 field.
 		bls12381G2PublicKeyLen: curve.CompressedG2ByteSize,
@@ -186,7 +187,7 @@ func (bbs *BBSG2Pub) DeriveProofZr(messagesFr []*SignatureMessage, sigBytes, non
 		return nil, fmt.Errorf("init proof of knowledge signature: %w", err)
 	}
 
-	proof := pokSignature.GenerateProof()
+	proof := pokSignature.GenerateProof(nonce)
 
 	payload := NewPoKPayload(messagesCount, revealedIndexes)
 
@@ -296,5 +297,5 @@ func (cb *commitmentBuilder) Add(base *ml.G1, scalar *ml.Zr) {
 }
 
 func (cb *commitmentBuilder) Build() *ml.G1 {
-	return sumOfG1Products(cb.bases, cb.scalars)
+	return zkp.SumOfG1Products(cb.bases, cb.scalars)
 }

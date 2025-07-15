@@ -8,6 +8,7 @@ package bbs
 
 import (
 	ml "github.com/IBM/mathlib"
+	zkp "github.com/annamiraotoole/mathlib-schnorr/schnorr"
 )
 
 // SignatureMessage defines a message to be used for a signature check.
@@ -18,7 +19,7 @@ type SignatureMessage struct {
 
 // ParseSignatureMessage parses SignatureMessage from bytes.
 func ParseSignatureMessage(message []byte, idx int, curve *ml.Curve) *SignatureMessage {
-	elm := FrFromOKM(curve, message)
+	elm := zkp.FrFromOKM(curve, message)
 
 	return &SignatureMessage{
 		FR:  elm,

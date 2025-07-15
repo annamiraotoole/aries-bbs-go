@@ -12,10 +12,11 @@ import (
 	"fmt"
 
 	ml "github.com/IBM/mathlib"
+	zkp "github.com/annamiraotoole/mathlib-schnorr/schnorr"
 )
 
 type VCProofVerifier interface {
-	Verify(*PublicKeyWithGenerators, map[int]*SignatureMessage, []*SignatureMessage, *ProofG1, *ml.G1, *ml.G1) error
+	Verify(*PublicKeyWithGenerators, map[int]*SignatureMessage, []*SignatureMessage, *zkp.ProofG1, *ml.G1, *ml.G1, []byte) error
 }
 
 // PoKOfSignatureProof defines BLS signature proof.
@@ -24,7 +25,7 @@ type PoKOfSignatureProof struct {
 	aPrime *ml.G1
 	aBar   *ml.G1
 
-	ProofVC *ProofG1
+	ProofVC *zkp.ProofG1
 
 	VCProofVerifier
 
@@ -35,12 +36,12 @@ type PoKOfSignatureProof struct {
 func (sp *PoKOfSignatureProof) Verify(pubKey *PublicKeyWithGenerators,
 	revealedMessages map[int]*SignatureMessage, messages []*SignatureMessage, nonce []byte) error {
 
-	ok := compareTwoPairings(sp.curve, sp.aPrime, pubKey.w, sp.aBar, sp.curve.GenG2)
+	ok := zkp.CompareTwoPairings(sp.curve, sp.aPrime, pubKey.w, sp.aBar, sp.curve.GenG2)
 	if !ok {
 		return errors.New("bad signature")
 	}
 
-	return sp.VCProofVerifier.Verify(pubKey, revealedMessages, messages, sp.ProofVC, sp.aPrime, sp.aBar)
+	return sp.VCProofVerifier.Verify(pubKey, revealedMessages, messages, sp.ProofVC, sp.aPrime, sp.aBar, nonce)
 }
 
 type defaultVCProofVerifier struct {
@@ -48,7 +49,7 @@ type defaultVCProofVerifier struct {
 }
 
 func (v *defaultVCProofVerifier) Verify(pubKey *PublicKeyWithGenerators,
-	revealedMessages map[int]*SignatureMessage, messages []*SignatureMessage, ProofVC *ProofG1, aPrime *ml.G1, aBar *ml.G1) error {
+	revealedMessages map[int]*SignatureMessage, messages []*SignatureMessage, ProofVC *zkp.ProofG1, aPrime *ml.G1, aBar *ml.G1, nonce []byte) error {
 	revealedMessagesCount := len(revealedMessages)
 
 	// bases should be A', aBar, then all the H[i] that are not revealed
@@ -61,13 +62,10 @@ func (v *defaultVCProofVerifier) Verify(pubKey *PublicKeyWithGenerators,
 	basesDisclosed = append(basesDisclosed, v.curve.GenG1)
 	exponents = append(exponents, v.curve.NewZrFromInt(1))
 
-	// revealedMessagesInd := 0 // DEVIATION FROM ORIGINAL CODE: this is not used in the new code
-
 	for i := range pubKey.H {
 		if _, ok := revealedMessages[i]; ok {
 			basesDisclosed = append(basesDisclosed, pubKey.H[i])
-			exponents = append(exponents, revealedMessages[i].FR) // DEVIATION FROM ORIGINAL CODE
-			// revealedMessagesInd++ // DEVIATION FROM ORIGINAL CODE
+			exponents = append(exponents, revealedMessages[i].FR)
 		} else {
 			basesVC = append(basesVC, pubKey.H[i])
 		}
@@ -85,9 +83,11 @@ func (v *defaultVCProofVerifier) Verify(pubKey *PublicKeyWithGenerators,
 		pr.Add(g)
 	}
 
+	challProvider := zkp.NewChallengeProvider(v.curve, ProofVC.Commitment, basesVC, nonce)
+
 	// pr.Neg() // DEVIATION FROM ORIGINAL CODE
 
-	if !VerifyProofG1(v.curve, ProofVC, pr, basesVC) {
+	if !zkp.VerifyProofG1(v.curve, ProofVC, pr, basesVC, challProvider) {
 		return errors.New("bad proof of knowledge of signature")
 	}
 
@@ -111,25 +111,25 @@ func (sp *PoKOfSignatureProof) ToBytes() []byte {
 	return bytes
 }
 
-// Verify verifies the ProofG1.
-func (pg1 *ProofG1) Verify(bases []*ml.G1, commitment *ml.G1, challenge *ml.Zr) error {
-	contribution := pg1.getChallengeContribution(bases, commitment, challenge)
-	contribution.Sub(pg1.Commitment)
+// // Verify verifies the ProofG1.
+// func (pg1 *ProofG1) Verify(bases []*ml.G1, commitment *ml.G1, challenge *ml.Zr) error {
+// 	contribution := pg1.getChallengeContribution(bases, commitment, challenge)
+// 	contribution.Sub(pg1.Commitment)
 
-	if !contribution.IsInfinity() {
-		return errors.New("contribution is not zero")
-	}
+// 	if !contribution.IsInfinity() {
+// 		return errors.New("contribution is not zero")
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
-func (pg1 *ProofG1) getChallengeContribution(bases []*ml.G1, commitment *ml.G1,
-	challenge *ml.Zr) *ml.G1 {
-	points := append(bases, commitment)
-	scalars := append(pg1.Responses, challenge)
+// func (pg1 *zkp.ProofG1) getChallengeContribution(bases []*ml.G1, commitment *ml.G1,
+// 	challenge *ml.Zr) *ml.G1 {
+// 	points := append(bases, commitment)
+// 	scalars := append(pg1.Responses, challenge)
 
-	return sumOfG1Products(points, scalars)
-}
+// 	return zkp.SumOfG1Products(points, scalars)
+// }
 
 // ParseSignatureProof parses a signature proof.
 func (b *BBSLib) ParseSignatureProof(sigProofBytes []byte) (*PoKOfSignatureProof, error) {
@@ -154,7 +154,7 @@ func (b *BBSLib) ParseSignatureProof(sigProofBytes []byte) (*PoKOfSignatureProof
 	proofBytesLen := int(uint32FromBytes(sigProofBytes[offset : offset+4]))
 	offset += 4
 
-	proofVc, err := b.ParseProofG1(sigProofBytes[offset : offset+proofBytesLen])
+	proofVc, err := zkp.ParseProofG1(b.curve, sigProofBytes[offset:offset+proofBytesLen])
 	if err != nil {
 		return nil, fmt.Errorf("parse G1 proof: %w", err)
 	}
@@ -168,34 +168,4 @@ func (b *BBSLib) ParseSignatureProof(sigProofBytes []byte) (*PoKOfSignatureProof
 		},
 		curve: b.curve,
 	}, nil
-}
-
-// ParseProofG1 parses ProofG1 from bytes.
-func (b *BBSLib) ParseProofG1(bytes []byte) (*ProofG1, error) {
-	if len(bytes) < b.g1CompressedSize+4 {
-		return nil, errors.New("invalid size of G1 signature proof")
-	}
-
-	offset := 0
-
-	commitment, err := b.curve.NewG1FromCompressed(bytes[:b.g1CompressedSize])
-	if err != nil {
-		return nil, fmt.Errorf("parse G1 point: %w", err)
-	}
-
-	offset += b.g1CompressedSize
-	length := int(uint32FromBytes(bytes[offset : offset+4]))
-	offset += 4
-
-	if len(bytes) < b.g1CompressedSize+4+length*frCompressedSize {
-		return nil, errors.New("invalid size of G1 signature proof")
-	}
-
-	responses := make([]*ml.Zr, length)
-	for i := 0; i < length; i++ {
-		responses[i] = b.parseFr(bytes[offset : offset+frCompressedSize])
-		offset += frCompressedSize
-	}
-
-	return NewProofG1(commitment, responses), nil
 }
