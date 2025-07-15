@@ -103,7 +103,7 @@ func (b *BBSLib) UnmarshalPrivateKey(privKeyBytes []byte) (*PrivateKey, error) {
 		return nil, errors.New("invalid size of private key")
 	}
 
-	fr := b.parseFr(privKeyBytes)
+	fr := b.curve.NewZrFromBytes(privKeyBytes)
 
 	return &PrivateKey{
 		FR:    fr,
@@ -119,7 +119,7 @@ func (k *PrivateKey) Marshal() ([]byte, error) {
 
 // PublicKey returns a Public Key as G2 point generated from the Private Key.
 func (k *PrivateKey) PublicKey() *PublicKey {
-	pointG2 := k.curve.GenG2.Mul(FrToRepr(k.FR))
+	pointG2 := k.curve.GenG2.Mul(k.FR.Copy())
 
 	return &PublicKey{
 		curve:   k.curve,

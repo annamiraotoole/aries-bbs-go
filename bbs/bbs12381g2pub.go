@@ -271,7 +271,7 @@ func (bbs *BBSG2Pub) SignWithKeyB(b *ml.G1, messagesCount int, privKey *PrivateK
 	b = b.Copy()
 	b.Add(pubKeyWithGenerators.H0.Mul(s))
 
-	sig := b.Mul(FrToRepr(exp))
+	sig := b.Mul(exp.Copy())
 
 	signature := &Signature{
 		A:     sig,
@@ -338,5 +338,5 @@ func ParseProofNonce(proofNonceBytes []byte, curve *ml.Curve) *ProofNonce {
 
 // ToBytes converts ProofNonce into bytes.
 func (pn *ProofNonce) ToBytes() []byte {
-	return FrToRepr(pn.fr).Bytes()
+	return pn.fr.Copy().Bytes()
 }

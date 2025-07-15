@@ -128,7 +128,7 @@ func (v *defaultVC2ProofVerifier) Verify(challenge *ml.Zr, pubKey *PublicKeyWith
 		b := basesDisclosed[i]
 		s := exponents[i]
 
-		g := b.Mul(FrToRepr(s))
+		g := b.Mul(s.Copy())
 		pr.Add(g)
 	}
 
@@ -251,7 +251,7 @@ func (b *BBSLib) ParseProofG1(bytes []byte) (*ProofG1, error) {
 
 	responses := make([]*ml.Zr, length)
 	for i := 0; i < length; i++ {
-		responses[i] = b.parseFr(bytes[offset : offset+frCompressedSize])
+		responses[i] = b.curve.NewZrFromBytes(bytes[offset : offset+frCompressedSize])
 		offset += frCompressedSize
 	}
 

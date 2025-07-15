@@ -18,6 +18,7 @@ import (
 	"io"
 
 	ml "github.com/IBM/mathlib"
+	"golang.org/x/crypto/blake2b"
 )
 
 // DELETE once I get confirmation that this is not needed, so we can just use c.ScalarByteSize
@@ -163,36 +164,36 @@ func ParseProofG1(c *ml.Curve, bytes []byte) (*ProofG1, error) {
 /// currently is almost the same as in aries-bbs-go code
 ////////////////////////////////////////////////////////////////////////////////////
 
-// func FrFromOKM(c *ml.Curve, message []byte) *ml.Zr {
-// 	const (
-// 		eightBytes = 8
-// 		okmMiddle  = 24
-// 	)
+func FrFromOKM(c *ml.Curve, message []byte) *ml.Zr {
+	const (
+		eightBytes = 8
+		okmMiddle  = 24
+	)
 
-// 	// We pass a null key so error is impossible here.
-// 	h, _ := blake2b.New384(nil) //nolint:errcheck
+	// We pass a null key so error is impossible here.
+	h, _ := blake2b.New384(nil) //nolint:errcheck
 
-// 	// blake2b.digest() does not return an error.
-// 	_, _ = h.Write(message)
-// 	okm := h.Sum(nil)
-// 	emptyEightBytes := make([]byte, eightBytes)
+	// blake2b.digest() does not return an error.
+	_, _ = h.Write(message)
+	okm := h.Sum(nil)
+	emptyEightBytes := make([]byte, eightBytes)
 
-// 	elm := c.NewZrFromBytes(append(emptyEightBytes, okm[:okmMiddle]...))
+	elm := c.NewZrFromBytes(append(emptyEightBytes, okm[:okmMiddle]...))
 
-// 	f2192 := c.NewZrFromBytes([]byte{
-// 		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1,
-// 		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-// 		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-// 		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-// 	})
+	f2192 := c.NewZrFromBytes([]byte{
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+	})
 
-// 	elm = elm.Mul(f2192)
+	elm = elm.Mul(f2192)
 
-// 	fr := c.NewZrFromBytes(append(emptyEightBytes, okm[okmMiddle:]...))
-// 	elm = elm.Plus(fr)
+	fr := c.NewZrFromBytes(append(emptyEightBytes, okm[okmMiddle:]...))
+	elm = elm.Plus(fr)
 
-// 	return elm
-// }
+	return elm
+}
 
 ////////////////////////////////////////////////////////////////////////////////////
 

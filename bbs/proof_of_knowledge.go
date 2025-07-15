@@ -76,11 +76,11 @@ func (p *PoKOfSignatureProvider) PoKOfSignatureB(signature *Signature, messages 
 	}
 
 	r1, r2 := p.Bl.createRandSignatureFr(), p.Bl.createRandSignatureFr()
-	aPrime := signature.A.Mul(FrToRepr(r1))
+	aPrime := signature.A.Mul(r1.Copy())
 
-	aBarDenom := aPrime.Mul(FrToRepr(signature.E))
+	aBarDenom := aPrime.Mul(signature.E.Copy())
 
-	aBar := b.Mul(FrToRepr(r1))
+	aBar := b.Mul(r1.Copy())
 	aBar.Sub(aBarDenom)
 
 	r2D := r2.Copy()

@@ -32,8 +32,8 @@ func (b *BBSLib) ParseSignature(sigBytes []byte) (*Signature, error) {
 		return nil, fmt.Errorf("deserialize G1 compressed signature: %w", err)
 	}
 
-	e := b.parseFr(sigBytes[b.g1CompressedSize : b.g1CompressedSize+frCompressedSize])
-	s := b.parseFr(sigBytes[b.g1CompressedSize+frCompressedSize:])
+	e := b.curve.NewZrFromBytes(sigBytes[b.g1CompressedSize : b.g1CompressedSize+frCompressedSize])
+	s := b.curve.NewZrFromBytes(sigBytes[b.g1CompressedSize+frCompressedSize:])
 
 	return &Signature{
 		A:     pointG1,
@@ -58,7 +58,7 @@ func (s *Signature) ToBytes() ([]byte, error) {
 func (s *Signature) Verify(messages []*SignatureMessage, pubKey *PublicKeyWithGenerators) error {
 	p1 := s.A
 
-	q1 := s.curve.GenG2.Mul(FrToRepr(s.E))
+	q1 := s.curve.GenG2.Mul(s.E.Copy())
 	q1.Add(pubKey.w)
 
 	p2 := ComputeB(s.S, messages, pubKey, s.curve)
