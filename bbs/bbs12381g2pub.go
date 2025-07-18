@@ -53,26 +53,26 @@ func NewBBSLib(curve *ml.Curve) *BBSLib {
 // BBSG2Pub defines BBS+ signature scheme where public key is a point in the field of G2.
 // BBS+ signature scheme (as defined in https://eprint.iacr.org/2016/663.pdf, section 4.3).
 type BBSG2Pub struct {
-	curve *ml.Curve
-	lib   *BBSLib
+	Curve *ml.Curve
+	Lib   *BBSLib
 }
 
 // New creates a new BBSG2Pub.
 func New(curve *ml.Curve) *BBSG2Pub {
 	return &BBSG2Pub{
-		curve: curve,
-		lib:   NewBBSLib(curve),
+		Curve: curve,
+		Lib:   NewBBSLib(curve),
 	}
 }
 
 // Verify makes BLS BBS12-381 signature verification.
 func (bbs *BBSG2Pub) Verify(messages [][]byte, sigBytes, pubKeyBytes []byte) error {
-	signature, err := bbs.lib.ParseSignature(sigBytes)
+	signature, err := bbs.Lib.ParseSignature(sigBytes)
 	if err != nil {
 		return fmt.Errorf("parse signature: %w", err)
 	}
 
-	pubKey, err := bbs.lib.UnmarshalPublicKey(pubKeyBytes)
+	pubKey, err := bbs.Lib.UnmarshalPublicKey(pubKeyBytes)
 	if err != nil {
 		return fmt.Errorf("parse public key: %w", err)
 	}
@@ -84,14 +84,14 @@ func (bbs *BBSG2Pub) Verify(messages [][]byte, sigBytes, pubKeyBytes []byte) err
 		return fmt.Errorf("build generators from public key: %w", err)
 	}
 
-	messagesFr := MessagesToFr(messages, bbs.curve)
+	messagesFr := MessagesToFr(messages, bbs.Curve)
 
 	return signature.Verify(messagesFr, publicKeyWithGenerators)
 }
 
 // Sign signs the one or more messages using private key in compressed form.
 func (bbs *BBSG2Pub) Sign(messages [][]byte, privKeyBytes []byte) ([]byte, error) {
-	privKey, err := bbs.lib.UnmarshalPrivateKey(privKeyBytes)
+	privKey, err := bbs.Lib.UnmarshalPrivateKey(privKeyBytes)
 	if err != nil {
 		return nil, fmt.Errorf("unmarshal private key: %w", err)
 	}
@@ -106,7 +106,7 @@ func (bbs *BBSG2Pub) Sign(messages [][]byte, privKeyBytes []byte) ([]byte, error
 // VerifyProof verifies BBS+ signature proof for one ore more revealed messages.
 func (bbs *BBSG2Pub) VerifyProof(messagesBytes [][]byte, proof, nonce, pubKeyBytes []byte) error {
 
-	messages := MessagesToFr(messagesBytes, bbs.curve)
+	messages := MessagesToFr(messagesBytes, bbs.Curve)
 
 	return bbs.VerifyProofFr(messages, proof, nonce, pubKeyBytes)
 }
@@ -119,12 +119,12 @@ func (bbs *BBSG2Pub) VerifyProofFr(messages []*SignatureMessage, proof, nonce, p
 		return fmt.Errorf("parse signature proof: %w", err)
 	}
 
-	signatureProof, err := bbs.lib.ParseSignatureProof(proof[payload.LenInBytes():])
+	signatureProof, err := bbs.Lib.ParseSignatureProof(proof[payload.LenInBytes():])
 	if err != nil {
 		return fmt.Errorf("parse signature proof: %w", err)
 	}
 
-	pubKey, err := bbs.lib.UnmarshalPublicKey(pubKeyBytes)
+	pubKey, err := bbs.Lib.UnmarshalPublicKey(pubKeyBytes)
 	if err != nil {
 		return fmt.Errorf("parse public key: %w", err)
 	}
@@ -150,7 +150,7 @@ func (bbs *BBSG2Pub) VerifyProofFr(messages []*SignatureMessage, proof, nonce, p
 func (bbs *BBSG2Pub) DeriveProof(messages [][]byte, sigBytes, nonce, pubKeyBytes []byte,
 	revealedIndexes []int) ([]byte, error) {
 
-	return bbs.DeriveProofZr(MessagesToFr(messages, bbs.curve), sigBytes, nonce, pubKeyBytes, revealedIndexes)
+	return bbs.DeriveProofZr(MessagesToFr(messages, bbs.Curve), sigBytes, nonce, pubKeyBytes, revealedIndexes)
 }
 
 // DeriveProofZr derives a proof of BBS+ signature with some messages disclosed.
@@ -166,7 +166,7 @@ func (bbs *BBSG2Pub) DeriveProofZr(messagesFr []*SignatureMessage, sigBytes, non
 
 	messagesCount := len(messagesFr)
 
-	pubKey, err := bbs.lib.UnmarshalPublicKey(pubKeyBytes)
+	pubKey, err := bbs.Lib.UnmarshalPublicKey(pubKeyBytes)
 	if err != nil {
 		return nil, fmt.Errorf("parse public key: %w", err)
 	}
@@ -176,12 +176,12 @@ func (bbs *BBSG2Pub) DeriveProofZr(messagesFr []*SignatureMessage, sigBytes, non
 		return nil, fmt.Errorf("build generators from public key: %w", err)
 	}
 
-	signature, err := bbs.lib.ParseSignature(sigBytes)
+	signature, err := bbs.Lib.ParseSignature(sigBytes)
 	if err != nil {
 		return nil, fmt.Errorf("parse signature: %w", err)
 	}
 
-	pokSignature, err := bbs.lib.NewPoKOfSignature(signature, messagesFr, revealedIndexes, publicKeyWithGenerators, nonce)
+	pokSignature, err := bbs.Lib.NewPoKOfSignature(signature, messagesFr, revealedIndexes, publicKeyWithGenerators, nonce)
 	if err != nil {
 		return nil, fmt.Errorf("init proof of knowledge signature: %w", err)
 	}
@@ -204,7 +204,7 @@ func (bbs *BBSG2Pub) DeriveProofZr(messagesFr []*SignatureMessage, sigBytes, non
 func (bbs *BBSG2Pub) SignWithKey(messages [][]byte, privKey *PrivateKey) ([]byte, error) {
 	messagesFr := make([]*SignatureMessage, len(messages))
 	for i := range messages {
-		messagesFr[i] = ParseSignatureMessage(messages[i], i, bbs.curve)
+		messagesFr[i] = ParseSignatureMessage(messages[i], i, bbs.Curve)
 	}
 
 	return bbs.SignWithKeyFr(messagesFr, len(messages), privKey)
@@ -226,7 +226,7 @@ func (bbs *BBSG2Pub) SignWithKeyFr(messagesFr []*SignatureMessage, messagesCount
 
 	cb := zkp.NewCommitmentBuilder(len(messagesFr) + basesOffset)
 
-	cb.Add(bbs.curve.GenG1, bbs.curve.NewZrFromInt(1))
+	cb.Add(bbs.Curve.GenG1, bbs.Curve.NewZrFromInt(1))
 
 	for i := 0; i < len(messagesFr); i++ {
 		cb.Add(pubKeyWithGenerators.H[messagesFr[i].Idx], messagesFr[i].FR)
@@ -242,10 +242,10 @@ func (bbs *BBSG2Pub) SignWithKeyFr(messagesFr []*SignatureMessage, messagesCount
 // jointly by requester and signer.
 func (bbs *BBSG2Pub) SignWithKeyB(b *ml.G1, messagesCount int, privKey *PrivateKey) ([]byte, error) {
 
-	e := bbs.lib.createRandSignatureFr()
+	e := bbs.Lib.createRandSignatureFr()
 	exp := privKey.FR.Copy()
 	exp = exp.Plus(e)
-	exp.InvModP(bbs.curve.GroupOrder)
+	exp.InvModP(bbs.Curve.GroupOrder)
 
 	b = b.Copy()
 
@@ -254,10 +254,35 @@ func (bbs *BBSG2Pub) SignWithKeyB(b *ml.G1, messagesCount int, privKey *PrivateK
 	signature := &Signature{
 		A:     sig,
 		E:     e,
-		curve: bbs.curve,
+		curve: bbs.Curve,
 	}
 
 	return signature.ToBytes()
+}
+
+// SignWithKeyB signs the one or more messages using BBS+ key pair.
+// Messages are already committed in the element `b`, which the caller
+// is supposed to have constructed properly. This call enables a clean
+// construction of blind signing protocols, where `b` is constructed
+// jointly by requester and signer.
+func (bbs *BBSG2Pub) SignWithKeyBStruct(b *ml.G1, messagesCount int, privKey *PrivateKey) (*Signature, error) {
+
+	e := bbs.Lib.createRandSignatureFr()
+	exp := privKey.FR.Copy()
+	exp = exp.Plus(e)
+	exp.InvModP(bbs.Curve.GroupOrder)
+
+	b = b.Copy()
+
+	sig := b.Mul(exp.Copy())
+
+	signature := &Signature{
+		A:     sig,
+		E:     e,
+		curve: bbs.Curve,
+	}
+
+	return signature, nil
 }
 
 func ComputeB(
