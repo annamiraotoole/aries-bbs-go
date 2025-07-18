@@ -232,7 +232,7 @@ func (bbs *BBSG2Pub) SignWithKeyFr(messagesFr []*SignatureMessage, messagesCount
 		cb.Add(pubKeyWithGenerators.H[messagesFr[i].Idx], messagesFr[i].FR)
 	}
 
-	return bbs.SignWithKeyB(cb.Build(), len(messagesFr), privKey)
+	return bbs.SignWithKeyB(cb.Build(), privKey)
 }
 
 // SignWithKeyB signs the one or more messages using BBS+ key pair.
@@ -240,7 +240,7 @@ func (bbs *BBSG2Pub) SignWithKeyFr(messagesFr []*SignatureMessage, messagesCount
 // is supposed to have constructed properly. This call enables a clean
 // construction of blind signing protocols, where `b` is constructed
 // jointly by requester and signer.
-func (bbs *BBSG2Pub) SignWithKeyB(b *ml.G1, messagesCount int, privKey *PrivateKey) ([]byte, error) {
+func (bbs *BBSG2Pub) SignWithKeyB(b *ml.G1, privKey *PrivateKey) ([]byte, error) {
 
 	e := bbs.Lib.createRandSignatureFr()
 	exp := privKey.FR.Copy()
@@ -265,7 +265,7 @@ func (bbs *BBSG2Pub) SignWithKeyB(b *ml.G1, messagesCount int, privKey *PrivateK
 // is supposed to have constructed properly. This call enables a clean
 // construction of blind signing protocols, where `b` is constructed
 // jointly by requester and signer.
-func (bbs *BBSG2Pub) SignWithKeyBStruct(b *ml.G1, messagesCount int, privKey *PrivateKey) (*Signature, error) {
+func (bbs *BBSG2Pub) SignWithKeyBStruct(b *ml.G1, privKey *PrivateKey) (*Signature, error) {
 
 	e := bbs.Lib.createRandSignatureFr()
 	exp := privKey.FR.Copy()

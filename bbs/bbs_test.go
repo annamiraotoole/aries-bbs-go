@@ -197,7 +197,7 @@ func TestBlindSign(t *testing.T) {
 
 			// signer signs
 			scheme := bbs.New(curve)
-			sig, err := scheme.SignWithKeyB(comm, len(messagesBytes), privKey)
+			sig, err := scheme.SignWithKeyB(comm, privKey)
 			require.NoError(t, err)
 
 			// requester verifies
