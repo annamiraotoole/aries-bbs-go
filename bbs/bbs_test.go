@@ -172,7 +172,7 @@ func TestBlindSign(t *testing.T) {
 			}
 
 			// requester generates commitment to blind messages
-			cb := bbs.NewCommitmentBuilder(blindMsgCount)
+			cb := zkp.NewCommitmentBuilder(blindMsgCount)
 			for i, msg := range blindedMessagesBytes {
 				if msg == nil {
 					continue
@@ -183,7 +183,7 @@ func TestBlindSign(t *testing.T) {
 			b_req := cb.Build()
 
 			// signer adds its component
-			cb = bbs.NewCommitmentBuilder(len(messagesBytes) - blindMsgCount + 2)
+			cb = zkp.NewCommitmentBuilder(len(messagesBytes) - blindMsgCount + 2)
 			for i, msg := range clearMessagesBytes {
 				if msg == nil {
 					continue

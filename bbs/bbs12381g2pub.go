@@ -224,7 +224,7 @@ func (bbs *BBSG2Pub) SignWithKeyFr(messagesFr []*SignatureMessage, messagesCount
 
 	const basesOffset = 1
 
-	cb := NewCommitmentBuilder(len(messagesFr) + basesOffset)
+	cb := zkp.NewCommitmentBuilder(len(messagesFr) + basesOffset)
 
 	cb.Add(bbs.curve.GenG1, bbs.curve.NewZrFromInt(1))
 
@@ -267,7 +267,7 @@ func ComputeB(
 ) *ml.G1 {
 	const basesOffset = 1
 
-	cb := NewCommitmentBuilder(len(messages) + basesOffset)
+	cb := zkp.NewCommitmentBuilder(len(messages) + basesOffset)
 
 	cb.Add(curve.GenG1, curve.NewZrFromInt(1))
 
@@ -276,25 +276,4 @@ func ComputeB(
 	}
 
 	return cb.Build()
-}
-
-type commitmentBuilder struct {
-	bases   []*ml.G1
-	scalars []*ml.Zr
-}
-
-func NewCommitmentBuilder(expectedSize int) *commitmentBuilder {
-	return &commitmentBuilder{
-		bases:   make([]*ml.G1, 0, expectedSize),
-		scalars: make([]*ml.Zr, 0, expectedSize),
-	}
-}
-
-func (cb *commitmentBuilder) Add(base *ml.G1, scalar *ml.Zr) {
-	cb.bases = append(cb.bases, base)
-	cb.scalars = append(cb.scalars, scalar)
-}
-
-func (cb *commitmentBuilder) Build() *ml.G1 {
-	return zkp.SumOfG1Products(cb.bases, cb.scalars)
 }
