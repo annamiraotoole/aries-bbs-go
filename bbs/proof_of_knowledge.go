@@ -157,5 +157,8 @@ func (pos *PoKOfSignature) GenerateProof(nonce []byte) *PoKOfSignatureProof {
 		aBar:    pos.aBar,
 		ProofVC: zkp.FinishProofG1(pos.curve, pos.pokVC, pos.secrets, challProvider),
 		curve:   pos.curve,
+		VCProofVerifier: &defaultVCProofVerifier{
+			curve: pos.curve,
+		},
 	}
 }
