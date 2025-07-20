@@ -153,8 +153,8 @@ func (p *defaultVCSignatureProvider) New(signature *Signature, aPrime *ml.G1, aB
 func (pos *PoKOfSignature) GenerateProof(nonce []byte) *PoKOfSignatureProof {
 	challProvider := zkp.NewChallengeProvider(pos.curve, pos.pokVC.Commitment, pos.pokVC.Bases, nonce)
 	return &PoKOfSignatureProof{
-		aPrime:  pos.aPrime,
-		aBar:    pos.aBar,
+		APrime:  pos.aPrime,
+		ABar:    pos.aBar,
 		ProofVC: zkp.FinishProofG1(pos.curve, pos.pokVC, pos.secrets, challProvider),
 		curve:   pos.curve,
 		VCProofVerifier: &defaultVCProofVerifier{

@@ -22,8 +22,8 @@ type VCProofVerifier interface {
 // PoKOfSignatureProof defines BLS signature proof.
 // It is the actual proof that is sent from prover to verifier.
 type PoKOfSignatureProof struct {
-	aPrime *ml.G1
-	aBar   *ml.G1
+	APrime *ml.G1
+	ABar   *ml.G1
 
 	ProofVC *zkp.ProofG1
 
@@ -36,12 +36,12 @@ type PoKOfSignatureProof struct {
 func (sp *PoKOfSignatureProof) Verify(pubKey *PublicKeyWithGenerators,
 	revealedMessages map[int]*SignatureMessage, messages []*SignatureMessage, nonce []byte) error {
 
-	ok := zkp.CompareTwoPairings(sp.curve, sp.aPrime, pubKey.w, sp.aBar, sp.curve.GenG2)
+	ok := zkp.CompareTwoPairings(sp.curve, sp.APrime, pubKey.w, sp.ABar, sp.curve.GenG2)
 	if !ok {
 		return errors.New("bad signature")
 	}
 
-	return sp.VCProofVerifier.Verify(pubKey, revealedMessages, messages, sp.ProofVC, sp.aPrime, sp.aBar, nonce)
+	return sp.VCProofVerifier.Verify(pubKey, revealedMessages, messages, sp.ProofVC, sp.APrime, sp.ABar, nonce)
 }
 
 type defaultVCProofVerifier struct {
@@ -99,8 +99,8 @@ func (v *defaultVCProofVerifier) Verify(pubKey *PublicKeyWithGenerators,
 func (sp *PoKOfSignatureProof) ToBytes() []byte {
 	bytes := make([]byte, 0)
 
-	bytes = append(bytes, sp.aPrime.Compressed()...)
-	bytes = append(bytes, sp.aBar.Compressed()...)
+	bytes = append(bytes, sp.APrime.Compressed()...)
+	bytes = append(bytes, sp.ABar.Compressed()...)
 
 	proofBytes := sp.ProofVC.ToBytes()
 	lenBytes := make([]byte, 4)
@@ -160,8 +160,8 @@ func (b *BBSLib) ParseSignatureProof(sigProofBytes []byte) (*PoKOfSignatureProof
 	}
 
 	return &PoKOfSignatureProof{
-		aPrime:  g1Points[0],
-		aBar:    g1Points[1],
+		APrime:  g1Points[0],
+		ABar:    g1Points[1],
 		ProofVC: proofVc,
 		VCProofVerifier: &defaultVCProofVerifier{
 			curve: b.curve,
