@@ -28,7 +28,7 @@ type PoKOfSignature struct {
 
 // NewPoKOfSignature creates a new PoKOfSignature.
 func (bl *BBSLib) NewPoKOfSignature(signature *Signature, messages []*SignatureMessage, revealedIndexes []int,
-	pubKey *PublicKeyWithGenerators, nonce []byte) (*PoKOfSignature, error) {
+	pubKey *PublicKeyWithGenerators, nonce []byte, r *ml.Zr) (*PoKOfSignature, error) {
 
 	p := &PoKOfSignatureProvider{
 		VCSignatureProvider: &defaultVCSignatureProvider{
@@ -39,7 +39,7 @@ func (bl *BBSLib) NewPoKOfSignature(signature *Signature, messages []*SignatureM
 		Bl:        bl,
 	}
 
-	return p.PoKOfSignature(signature, messages, revealedIndexes, pubKey, nonce)
+	return p.PoKOfSignature(signature, messages, revealedIndexes, pubKey, nonce, r)
 }
 
 type VCSignatureProvider interface {
@@ -56,14 +56,14 @@ type PoKOfSignatureProvider struct {
 }
 
 func (p *PoKOfSignatureProvider) PoKOfSignature(signature *Signature, messages []*SignatureMessage, revealedIndexes []int,
-	pubKey *PublicKeyWithGenerators, nonce []byte) (*PoKOfSignature, error) {
+	pubKey *PublicKeyWithGenerators, nonce []byte, r *ml.Zr) (*PoKOfSignature, error) {
 	b := ComputeB(messages, pubKey, p.Bl.curve)
 
-	return p.PoKOfSignatureB(signature, messages, revealedIndexes, pubKey, b, nonce)
+	return p.PoKOfSignatureB(signature, messages, revealedIndexes, pubKey, b, nonce, r)
 }
 
 func (p *PoKOfSignatureProvider) PoKOfSignatureB(signature *Signature, messages []*SignatureMessage, revealedIndexes []int,
-	pubKey *PublicKeyWithGenerators, b *ml.G1, nonce []byte) (*PoKOfSignature, error) {
+	pubKey *PublicKeyWithGenerators, b *ml.G1, nonce []byte, r *ml.Zr) (*PoKOfSignature, error) {
 
 	if p.VerifySig {
 		err := signature.Verify(messages, pubKey)
@@ -72,7 +72,7 @@ func (p *PoKOfSignatureProvider) PoKOfSignatureB(signature *Signature, messages 
 		}
 	}
 
-	r := p.Bl.createRandSignatureFr()
+	// r := p.Bl.createRandSignatureFr()
 	aPrime := signature.A.Mul(r.Copy())
 	aBar := b.Mul(r.Copy())
 

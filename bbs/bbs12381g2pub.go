@@ -181,7 +181,8 @@ func (bbs *BBSG2Pub) DeriveProofZr(messagesFr []*SignatureMessage, sigBytes, non
 		return nil, fmt.Errorf("parse signature: %w", err)
 	}
 
-	pokSignature, err := bbs.Lib.NewPoKOfSignature(signature, messagesFr, revealedIndexes, publicKeyWithGenerators, nonce)
+	r := bbs.Lib.createRandSignatureFr()
+	pokSignature, err := bbs.Lib.NewPoKOfSignature(signature, messagesFr, revealedIndexes, publicKeyWithGenerators, nonce, r)
 	if err != nil {
 		return nil, fmt.Errorf("init proof of knowledge signature: %w", err)
 	}
