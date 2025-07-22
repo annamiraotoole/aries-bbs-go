@@ -12,11 +12,10 @@ import (
 	"fmt"
 
 	ml "github.com/IBM/mathlib"
-	zkp "github.com/annamiraotoole/mathlib-schnorr/schnorr"
 )
 
 type VC2ProofVerifier interface {
-	Verify(*PublicKeyWithGenerators, map[int]*SignatureMessage, []*SignatureMessage, *zkp.ProofG1, *ml.G1, zkp.ChallengeProvider) error
+	Verify(*PublicKeyWithGenerators, map[int]*SignatureMessage, []*SignatureMessage, *ml.ProofG1, *ml.G1, ml.ChallengeProvider) error
 }
 
 // PoKOfSignatureProof defines BLS signature proof.
@@ -26,8 +25,8 @@ type PoKOfSignatureProof struct {
 	aBar   *ml.G1
 	d      *ml.G1
 
-	proofVC1 *zkp.ProofG1
-	ProofVC2 *zkp.ProofG1
+	proofVC1 *ml.ProofG1
+	ProofVC2 *ml.ProofG1
 
 	VC2ProofVerifier
 
@@ -102,7 +101,7 @@ func (cp *BBSChallProvider) GetChallenge() *ml.Zr {
 func (sp *PoKOfSignatureProof) Verify(pubKey *PublicKeyWithGenerators,
 	revealedMessages map[int]*SignatureMessage, messages []*SignatureMessage, nonce []byte) error {
 
-	ok := zkp.CompareTwoPairings(sp.curve, sp.aPrime, pubKey.w, sp.aBar, sp.curve.GenG2)
+	ok := sp.curve.CompareTwoPairings(sp.aPrime, pubKey.w, sp.aBar, sp.curve.GenG2)
 	if !ok {
 		return errors.New("bad signature")
 	}
@@ -118,12 +117,12 @@ func (sp *PoKOfSignatureProof) Verify(pubKey *PublicKeyWithGenerators,
 	return sp.VC2ProofVerifier.Verify(pubKey, revealedMessages, messages, sp.ProofVC2, sp.d, challProvider)
 }
 
-func (sp *PoKOfSignatureProof) verifyVC1Proof(pubKey *PublicKeyWithGenerators, challProvider zkp.ChallengeProvider) error {
+func (sp *PoKOfSignatureProof) verifyVC1Proof(pubKey *PublicKeyWithGenerators, challProvider ml.ChallengeProvider) error {
 	basesVC1 := []*ml.G1{sp.aPrime, pubKey.H0}
 	aBarD := sp.aBar.Copy()
 	aBarD.Sub(sp.d)
 
-	if !zkp.VerifyProofG1(sp.curve, sp.proofVC1, aBarD, basesVC1, challProvider) {
+	if !sp.curve.VerifyProofG1(sp.proofVC1, aBarD, basesVC1, challProvider) {
 		return errors.New("new verifyG1 function did not work on proofVC1")
 	}
 
@@ -135,8 +134,8 @@ type defaultVC2ProofVerifier struct {
 }
 
 func (v *defaultVC2ProofVerifier) Verify(pubKey *PublicKeyWithGenerators,
-	revealedMessages map[int]*SignatureMessage, messages []*SignatureMessage, ProofVC2 *zkp.ProofG1,
-	d *ml.G1, challProvider zkp.ChallengeProvider) error {
+	revealedMessages map[int]*SignatureMessage, messages []*SignatureMessage, ProofVC2 *ml.ProofG1,
+	d *ml.G1, challProvider ml.ChallengeProvider) error {
 	revealedMessagesCount := len(revealedMessages)
 
 	basesVC2 := make([]*ml.G1, 0, 2+pubKey.MessagesCount-revealedMessagesCount)
@@ -175,7 +174,7 @@ func (v *defaultVC2ProofVerifier) Verify(pubKey *PublicKeyWithGenerators,
 	pr.Neg()
 
 	// Verify the proof
-	if !zkp.VerifyProofG1(v.curve, ProofVC2, pr, basesVC2, challProvider) {
+	if !v.curve.VerifyProofG1(ProofVC2, pr, basesVC2, challProvider) {
 		return errors.New("new verifyG1 function did not work on ProofVC2")
 	}
 
@@ -249,7 +248,7 @@ func (b *BBSLib) ParseSignatureProof(sigProofBytes []byte) (*PoKOfSignatureProof
 }
 
 // ParseProofG1 parses ProofG1 from bytes.
-func (b *BBSLib) ParseProofG1(bytes []byte) (*zkp.ProofG1, error) {
+func (b *BBSLib) ParseProofG1(bytes []byte) (*ml.ProofG1, error) {
 	if len(bytes) < b.g1CompressedSize+4 {
 		return nil, errors.New("invalid size of G1 signature proof")
 	}
@@ -265,15 +264,15 @@ func (b *BBSLib) ParseProofG1(bytes []byte) (*zkp.ProofG1, error) {
 	length := int(uint32FromBytes(bytes[offset : offset+4]))
 	offset += 4
 
-	if len(bytes) < b.g1CompressedSize+4+length*frCompressedSize {
+	if len(bytes) < b.g1CompressedSize+4+length*b.curve.FrCompressedSize {
 		return nil, errors.New("invalid size of G1 signature proof")
 	}
 
 	responses := make([]*ml.Zr, length)
 	for i := 0; i < length; i++ {
-		responses[i] = b.curve.NewZrFromBytes(bytes[offset : offset+frCompressedSize])
-		offset += frCompressedSize
+		responses[i] = b.curve.NewZrFromBytes(bytes[offset : offset+b.curve.FrCompressedSize])
+		offset += b.curve.FrCompressedSize
 	}
 
-	return zkp.NewProofG1(commitment, responses), nil
+	return ml.NewProofG1(commitment, responses), nil
 }

@@ -11,7 +11,6 @@ import (
 	"fmt"
 
 	ml "github.com/IBM/mathlib"
-	zkp "github.com/annamiraotoole/mathlib-schnorr/schnorr"
 )
 
 // Signature defines BLS signature.
@@ -33,8 +32,8 @@ func (b *BBSLib) ParseSignature(sigBytes []byte) (*Signature, error) {
 		return nil, fmt.Errorf("deserialize G1 compressed signature: %w", err)
 	}
 
-	e := b.curve.NewZrFromBytes(sigBytes[b.g1CompressedSize : b.g1CompressedSize+frCompressedSize])
-	s := b.curve.NewZrFromBytes(sigBytes[b.g1CompressedSize+frCompressedSize:])
+	e := b.curve.NewZrFromBytes(sigBytes[b.g1CompressedSize : b.g1CompressedSize+b.curve.FrCompressedSize])
+	s := b.curve.NewZrFromBytes(sigBytes[b.g1CompressedSize+b.curve.FrCompressedSize:])
 
 	return &Signature{
 		A:     pointG1,
@@ -46,11 +45,11 @@ func (b *BBSLib) ParseSignature(sigBytes []byte) (*Signature, error) {
 
 // ToBytes converts signature to bytes using compression of G1 point and E, S FR points.
 func (s *Signature) ToBytes() ([]byte, error) {
-	bytes := make([]byte, s.curve.CompressedG1ByteSize+2*frCompressedSize)
+	bytes := make([]byte, s.curve.CompressedG1ByteSize+2*s.curve.FrCompressedSize)
 
 	copy(bytes, s.A.Compressed())
-	copy(bytes[s.curve.CompressedG1ByteSize:s.curve.CompressedG1ByteSize+frCompressedSize], s.E.Bytes())
-	copy(bytes[s.curve.CompressedG1ByteSize+frCompressedSize:], s.S.Bytes())
+	copy(bytes[s.curve.CompressedG1ByteSize:s.curve.CompressedG1ByteSize+s.curve.FrCompressedSize], s.E.Bytes())
+	copy(bytes[s.curve.CompressedG1ByteSize+s.curve.FrCompressedSize:], s.S.Bytes())
 
 	return bytes, nil
 }
@@ -64,7 +63,7 @@ func (s *Signature) Verify(messages []*SignatureMessage, pubKey *PublicKeyWithGe
 
 	p2 := ComputeB(s.S, messages, pubKey, s.curve)
 
-	if zkp.CompareTwoPairings(s.curve, p1, q1, p2, s.curve.GenG2) {
+	if s.curve.CompareTwoPairings(p1, q1, p2, s.curve.GenG2) {
 		return nil
 	}
 

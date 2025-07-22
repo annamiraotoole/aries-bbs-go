@@ -13,7 +13,6 @@ import (
 	"sort"
 
 	ml "github.com/IBM/mathlib"
-	zkp "github.com/annamiraotoole/mathlib-schnorr/schnorr"
 )
 
 type BBSLib struct {
@@ -31,7 +30,7 @@ func NewBBSLib(curve *ml.Curve) *BBSLib {
 		curve: curve,
 
 		// Signature length.
-		bls12381SignatureLen: curve.CompressedG1ByteSize + 2*frCompressedSize,
+		bls12381SignatureLen: curve.CompressedG1ByteSize + 2*curve.FrCompressedSize,
 
 		// Default BLS 12-381 public key length in G2 field.
 		bls12381G2PublicKeyLen: curve.CompressedG2ByteSize,
@@ -314,5 +313,5 @@ func (cb *commitmentBuilder) Add(base *ml.G1, scalar *ml.Zr) {
 }
 
 func (cb *commitmentBuilder) Build() *ml.G1 {
-	return zkp.SumOfG1Products(cb.bases, cb.scalars)
+	return ml.SumOfG1Products(cb.bases, cb.scalars)
 }
