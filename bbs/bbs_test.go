@@ -12,7 +12,6 @@ import (
 
 	ml "github.com/IBM/mathlib"
 	"github.com/annamiraotoole/aries-bbs-go/bbs"
-	zkp "github.com/annamiraotoole/mathlib-schnorr/schnorr"
 	"github.com/stretchr/testify/require"
 )
 
@@ -172,24 +171,24 @@ func TestBlindSign(t *testing.T) {
 			}
 
 			// requester generates commitment to blind messages
-			cb := zkp.NewCommitmentBuilder(blindMsgCount)
+			cb := ml.NewCommitmentBuilder(blindMsgCount)
 			for i, msg := range blindedMessagesBytes {
 				if msg == nil {
 					continue
 				}
 
-				cb.Add(pubKeyWithGenerators.H[i], zkp.FrFromOKM(curve, msg))
+				cb.Add(pubKeyWithGenerators.H[i], curve.FrFromOKM(msg))
 			}
 			b_req := cb.Build()
 
 			// signer adds its component
-			cb = zkp.NewCommitmentBuilder(len(messagesBytes) - blindMsgCount + 2)
+			cb = ml.NewCommitmentBuilder(len(messagesBytes) - blindMsgCount + 2)
 			for i, msg := range clearMessagesBytes {
 				if msg == nil {
 					continue
 				}
 
-				cb.Add(pubKeyWithGenerators.H[i], zkp.FrFromOKM(curve, msg))
+				cb.Add(pubKeyWithGenerators.H[i], curve.FrFromOKM(msg))
 			}
 			cb.Add(b_req, curve.NewZrFromInt(1))
 			cb.Add(curve.GenG1, curve.NewZrFromInt(1))

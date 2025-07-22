@@ -13,7 +13,6 @@ import (
 	"sort"
 
 	ml "github.com/IBM/mathlib"
-	zkp "github.com/annamiraotoole/mathlib-schnorr/schnorr"
 )
 
 type BBSLib struct {
@@ -31,7 +30,7 @@ func NewBBSLib(curve *ml.Curve) *BBSLib {
 		curve: curve,
 
 		// Signature length.
-		bls12381SignatureLen: curve.CompressedG1ByteSize + zkp.FrCompressedSize,
+		bls12381SignatureLen: curve.CompressedG1ByteSize + curve.FrCompressedSize,
 
 		// Default BLS 12-381 public key length in G2 field.
 		bls12381G2PublicKeyLen: curve.CompressedG2ByteSize,
@@ -225,7 +224,7 @@ func (bbs *BBSG2Pub) SignWithKeyFr(messagesFr []*SignatureMessage, messagesCount
 
 	const basesOffset = 1
 
-	cb := zkp.NewCommitmentBuilder(len(messagesFr) + basesOffset)
+	cb := ml.NewCommitmentBuilder(len(messagesFr) + basesOffset)
 
 	cb.Add(bbs.Curve.GenG1, bbs.Curve.NewZrFromInt(1))
 
@@ -293,7 +292,7 @@ func ComputeB(
 ) *ml.G1 {
 	const basesOffset = 1
 
-	cb := zkp.NewCommitmentBuilder(len(messages) + basesOffset)
+	cb := ml.NewCommitmentBuilder(len(messages) + basesOffset)
 
 	cb.Add(curve.GenG1, curve.NewZrFromInt(1))
 

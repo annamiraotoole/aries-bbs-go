@@ -10,7 +10,6 @@ import (
 	"fmt"
 
 	ml "github.com/IBM/mathlib"
-	zkp "github.com/annamiraotoole/mathlib-schnorr/schnorr"
 )
 
 // PoKOfSignature is Proof of Knowledge of a Signature that is used by the prover to construct PoKOfSignatureProof.
@@ -18,7 +17,7 @@ type PoKOfSignature struct {
 	aPrime *ml.G1
 	aBar   *ml.G1
 
-	pokVC   *zkp.ProverCommittedG1
+	pokVC   *ml.ProverCommittedG1
 	secrets []*ml.Zr
 
 	revealedMessages map[int]*SignatureMessage
@@ -43,7 +42,7 @@ func (bl *BBSLib) NewPoKOfSignature(signature *Signature, messages []*SignatureM
 }
 
 type VCSignatureProvider interface {
-	New(*Signature, *ml.G1, *ml.G1, *ml.G1, *ml.Zr, *PublicKeyWithGenerators, []*SignatureMessage, map[int]*SignatureMessage, []byte) (*zkp.ProverCommittedG1, []*ml.Zr)
+	New(*Signature, *ml.G1, *ml.G1, *ml.G1, *ml.Zr, *PublicKeyWithGenerators, []*SignatureMessage, map[int]*SignatureMessage, []byte) (*ml.ProverCommittedG1, []*ml.Zr)
 }
 
 type PoKOfSignatureProvider struct {
@@ -103,7 +102,7 @@ type defaultVCSignatureProvider struct {
 	bl *BBSLib
 }
 
-func (p *defaultVCSignatureProvider) New(signature *Signature, aPrime *ml.G1, aBar *ml.G1, b *ml.G1, r *ml.Zr, pubKey *PublicKeyWithGenerators, messages []*SignatureMessage, revealedMessages map[int]*SignatureMessage, nonce []byte) (*zkp.ProverCommittedG1, []*ml.Zr) {
+func (p *defaultVCSignatureProvider) New(signature *Signature, aPrime *ml.G1, aBar *ml.G1, b *ml.G1, r *ml.Zr, pubKey *PublicKeyWithGenerators, messages []*SignatureMessage, revealedMessages map[int]*SignatureMessage, nonce []byte) (*ml.ProverCommittedG1, []*ml.Zr) {
 
 	bases := make([]*ml.G1, 2)
 	secrets := make([]*ml.Zr, 2)
@@ -144,18 +143,18 @@ func (p *defaultVCSignatureProvider) New(signature *Signature, aPrime *ml.G1, aB
 		secrets = append(secrets, hiddenFRCopy)
 	}
 
-	pokVC := zkp.StartProofG1(p.bl.curve, rng, bases, secrets)
+	pokVC := p.bl.curve.StartProofG1(rng, bases, secrets)
 
 	return pokVC, secrets
 }
 
 // GenerateProof generates PoKOfSignatureProof proof from PoKOfSignature signature.
 func (pos *PoKOfSignature) GenerateProof(nonce []byte) *PoKOfSignatureProof {
-	challProvider := zkp.NewChallengeProvider(pos.curve, pos.pokVC.Commitment, pos.pokVC.Bases, nonce)
+	challProvider := pos.curve.NewChallengeProvider(pos.pokVC.Commitment, pos.pokVC.Bases, nonce)
 	return &PoKOfSignatureProof{
 		APrime:  pos.aPrime,
 		ABar:    pos.aBar,
-		ProofVC: zkp.FinishProofG1(pos.curve, pos.pokVC, pos.secrets, challProvider),
+		ProofVC: pos.curve.FinishProofG1(pos.pokVC, pos.secrets, challProvider),
 		curve:   pos.curve,
 		VCProofVerifier: &defaultVCProofVerifier{
 			curve: pos.curve,

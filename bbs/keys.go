@@ -14,13 +14,12 @@ import (
 	"io"
 
 	ml "github.com/IBM/mathlib"
-	zkp "github.com/annamiraotoole/mathlib-schnorr/schnorr"
 	"golang.org/x/crypto/hkdf"
 )
 
 var (
 	// nolint:gochecknoglobals
-	seedSize = zkp.FrCompressedSize
+	seedSize = 32
 
 	// nolint:gochecknoglobals
 	generateKeySalt = "BBS-SIG-KEYGEN-SALT-"
@@ -100,7 +99,7 @@ func hashToG1(data []byte, curve *ml.Curve) *ml.G1 {
 
 // UnmarshalPrivateKey unmarshals PrivateKey.
 func (b *BBSLib) UnmarshalPrivateKey(privKeyBytes []byte) (*PrivateKey, error) {
-	if len(privKeyBytes) != zkp.FrCompressedSize {
+	if len(privKeyBytes) != b.curve.FrCompressedSize {
 		return nil, errors.New("invalid size of private key")
 	}
 
@@ -163,7 +162,7 @@ func (b *BBSLib) GenerateKeyPair(h func() hash.Hash, seed []byte) (*PublicKey, *
 		return nil, nil, err
 	}
 
-	privKeyFr := zkp.FrFromOKM(b.curve, okm)
+	privKeyFr := b.curve.FrFromOKM(okm)
 
 	privKey := &PrivateKey{
 		FR:    privKeyFr,

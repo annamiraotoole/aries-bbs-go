@@ -4,9 +4,10 @@ go 1.23.0
 
 toolchain go1.23.4
 
+replace github.com/IBM/mathlib => ../mathlib
+
 require (
 	github.com/IBM/mathlib v0.0.3-0.20250709075152-a138079496c3
-	github.com/annamiraotoole/mathlib-schnorr v0.0.5
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/crypto v0.40.0
