@@ -31,6 +31,17 @@ type PoKOfSignatureProof struct {
 	curve *ml.Curve
 }
 
+// PoKOfSignatureProof defines BLS signature proof.
+// It is the actual proof that is sent from prover to verifier.
+type RevPoKOfSignatureProof struct {
+	APrime *ml.G1
+	ABar   *ml.G1
+
+	VCProofVerifier
+
+	curve *ml.Curve
+}
+
 // Verify verifies PoKOfSignatureProof.
 func (sp *PoKOfSignatureProof) Verify(pubKey *PublicKeyWithGenerators,
 	revealedMessages map[int]*SignatureMessage, messages []*SignatureMessage, nonce []byte) error {
@@ -42,6 +53,30 @@ func (sp *PoKOfSignatureProof) Verify(pubKey *PublicKeyWithGenerators,
 
 	return sp.VCProofVerifier.Verify(pubKey, revealedMessages, messages, sp.ProofVC, sp.APrime, sp.ABar, nonce)
 }
+
+// Verify verifies PoKOfSignatureProof.
+func (sp *RevPoKOfSignatureProof) RevVerify(pubKey *PublicKeyWithGenerators,
+	revealedMessages map[int]*SignatureMessage, messages []*SignatureMessage) error {
+
+	ok := sp.curve.CompareTwoPairings(sp.APrime, pubKey.w, sp.ABar, sp.curve.GenG2)
+	if !ok {
+		return errors.New("bad signature")
+	} else {
+		return nil
+	}
+}
+
+// // Verify verifies PoKOfSignatureProof.
+// func (sp *RevPoKOfSignature) RevVerify(pubKey *PublicKeyWithGenerators,
+// 	revealedMessages map[int]*SignatureMessage, messages []*SignatureMessage) error {
+
+// 	ok := sp.curve.CompareTwoPairings(sp.APrime, pubKey.w, sp.ABar, sp.curve.GenG2)
+// 	if !ok {
+// 		return errors.New("bad revocation signature proof")
+// 	} else {
+// 		return nil
+// 	}
+// }
 
 type defaultVCProofVerifier struct {
 	curve *ml.Curve
