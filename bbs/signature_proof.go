@@ -55,10 +55,10 @@ func (sp *PoKOfSignatureProof) Verify(pubKey *PublicKeyWithGenerators,
 }
 
 // Verify verifies PoKOfSignatureProof.
-func (sp *RevPoKOfSignatureProof) RevVerify(pubKey *PublicKeyWithGenerators,
+func RevVerify(curve *ml.Curve, aPrime *ml.G1, aBar *ml.G1, pubKey *PublicKeyWithGenerators,
 	revealedMessages map[int]*SignatureMessage, messages []*SignatureMessage) error {
 
-	ok := sp.curve.CompareTwoPairings(sp.APrime, pubKey.w, sp.ABar, sp.curve.GenG2)
+	ok := curve.CompareTwoPairings(aPrime, pubKey.w, aBar, curve.GenG2)
 	if !ok {
 		return errors.New("bad signature")
 	} else {

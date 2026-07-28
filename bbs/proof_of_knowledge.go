@@ -53,7 +53,7 @@ func (bl *BBSLib) NewPoKOfSignature(signature *Signature, messages []*SignatureM
 
 // NewPoKOfSignature creates a new PoKOfSignature.
 func (bl *BBSLib) RevNewPoKOfSignature(signature *Signature, messages []*SignatureMessage, revealedIndexes []int,
-	pubKey *PublicKeyWithGenerators, r *ml.Zr) (*RevPoKOfSignature, error) {
+	pubKey *PublicKeyWithGenerators, r *ml.Zr) (*ml.G1, *ml.G1, error) {
 
 	p := &PoKOfSignatureProvider{
 		VCSignatureProvider: &defaultVCSignatureProvider{
@@ -88,7 +88,7 @@ func (p *PoKOfSignatureProvider) PoKOfSignature(signature *Signature, messages [
 }
 
 func (p *PoKOfSignatureProvider) RevPoKOfSignature(signature *Signature, messages []*SignatureMessage, revealedIndexes []int,
-	pubKey *PublicKeyWithGenerators, r *ml.Zr) (*RevPoKOfSignature, error) {
+	pubKey *PublicKeyWithGenerators, r *ml.Zr) (*ml.G1, *ml.G1, error) {
 	b := ComputeB(messages, pubKey, p.Bl.curve)
 
 	return p.RevPoKOfSignatureB(signature, messages, revealedIndexes, pubKey, b, r)
@@ -132,12 +132,12 @@ func (p *PoKOfSignatureProvider) PoKOfSignatureB(signature *Signature, messages 
 }
 
 func (p *PoKOfSignatureProvider) RevPoKOfSignatureB(signature *Signature, messages []*SignatureMessage, revealedIndexes []int,
-	pubKey *PublicKeyWithGenerators, b *ml.G1, r *ml.Zr) (*RevPoKOfSignature, error) {
+	pubKey *PublicKeyWithGenerators, b *ml.G1, r *ml.Zr) (*ml.G1, *ml.G1, error) {
 
 	if p.VerifySig {
 		err := signature.Verify(messages, pubKey)
 		if err != nil {
-			return nil, fmt.Errorf("verify input signature: %w", err)
+			return nil, nil, fmt.Errorf("verify input signature: %w", err)
 		}
 	}
 
@@ -148,7 +148,7 @@ func (p *PoKOfSignatureProvider) RevPoKOfSignatureB(signature *Signature, messag
 	revealedMessages := make(map[int]*SignatureMessage, len(revealedIndexes))
 
 	if len(messages) < len(revealedIndexes) {
-		return nil, fmt.Errorf("invalid size: %d revealed indexes is larger than %d messages", len(revealedIndexes),
+		return nil, nil, fmt.Errorf("invalid size: %d revealed indexes is larger than %d messages", len(revealedIndexes),
 			len(messages))
 	}
 
@@ -156,12 +156,7 @@ func (p *PoKOfSignatureProvider) RevPoKOfSignatureB(signature *Signature, messag
 		revealedMessages[messages[ind].Idx] = messages[ind]
 	}
 
-	return &RevPoKOfSignature{
-		APrime:           aPrime,
-		ABar:             aBar,
-		revealedMessages: revealedMessages,
-		curve:            p.Curve,
-	}, nil
+	return aPrime, aBar, nil
 }
 
 type defaultVCSignatureProvider struct {
@@ -229,8 +224,8 @@ func (pos *PoKOfSignature) GenerateProof(nonce []byte) *PoKOfSignatureProof {
 }
 
 // GenerateProof generates PoKOfSignatureProof proof from PoKOfSignature signature.
-func (pos *RevPoKOfSignature) RevGenerateProof() *RevPoKOfSignatureProof {
-	return &RevPoKOfSignatureProof{
+func (pos *RevPoKOfSignature) RevGenerateProof() RevPoKOfSignatureProof {
+	return RevPoKOfSignatureProof{
 		APrime: pos.APrime,
 		ABar:   pos.ABar,
 		curve:  pos.curve,
