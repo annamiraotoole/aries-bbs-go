@@ -144,6 +144,8 @@ func (p *PoKOfSignatureProvider) RevPoKOfSignatureB(signature *Signature, messag
 	// r := p.Bl.createRandSignatureFr()
 	aPrime := signature.A.Mul(r.Copy())
 	aBar := b.Mul(r.Copy())
+	aBarDenom := aPrime.Mul(signature.E.Copy())
+	aBar.Sub(aBarDenom)
 
 	revealedMessages := make(map[int]*SignatureMessage, len(revealedIndexes))
 
